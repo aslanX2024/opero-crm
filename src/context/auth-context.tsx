@@ -6,6 +6,7 @@ import {
     useEffect,
     useState,
     useCallback,
+    useRef,
 } from "react";
 import { useRouter } from "next/navigation";
 import { Session, User } from "@supabase/supabase-js";
@@ -76,13 +77,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
+    
+    // Sonsuz döngüyü önlemek için ref kullan
+    const isInitialized = useRef(false);
+    const isFetchingProfile = useRef(false);
 
     // Kullanıcı profilini getir
-    const fetchProfile = useCallback(async (userId: string) => {
+    const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
         // Demo modunda mock profil döndür
         if (isDevelopmentMode) {
             return DEMO_PROFILE;
         }
+
+        // Zaten profil çekiliyorsa bekle
+        if (isFetchingProfile.current) {
+            return null;
+        }
+
+        isFetchingProfile.current = true;
 
         try {
             const { data, error } = await supabase
@@ -100,11 +112,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error("Profil getirme hatası:", error);
             return null;
+        } finally {
+            isFetchingProfile.current = false;
         }
     }, []);
 
-    // Oturum durumunu dinle
+    // Oturum durumunu dinle - SADECE BİR KEZ ÇALIŞIR
     useEffect(() => {
+        // Zaten başlatıldıysa çık
+        if (isInitialized.current) {
+            return;
+        }
+        isInitialized.current = true;
+
         // Demo modunda otomatik giriş yap
         if (isDevelopmentMode) {
             console.log("🔧 Geliştirme modu aktif - Demo kullanıcı ile giriş yapıldı");
@@ -118,13 +138,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Mevcut oturumu kontrol et
         const initializeAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session: currentSession } } = await supabase.auth.getSession();
 
-                if (session) {
-                    setSession(session);
-                    setUser(session.user);
-                    const userProfile = await fetchProfile(session.user.id);
-                    setProfile(userProfile);
+                if (currentSession) {
+                    setSession(currentSession);
+                    setUser(currentSession.user);
+                    const userProfile = await fetchProfile(currentSession.user.id);
+                    if (userProfile) {
+                        setProfile(userProfile);
+                    }
                 }
             } catch (error) {
                 console.error("Auth başlatma hatası:", error);
@@ -137,31 +159,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Auth değişikliklerini dinle
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                setSession(session);
-                setUser(session?.user ?? null);
+            async (event, newSession) => {
+                console.log("Auth event:", event);
 
-                if (session?.user) {
-                    const userProfile = await fetchProfile(session.user.id);
-                    setProfile(userProfile);
+                // Session ve user'ı güncelle
+                setSession(newSession);
+                setUser(newSession?.user ?? null);
+
+                if (newSession?.user) {
+                    // Profil çek
+                    const userProfile = await fetchProfile(newSession.user.id);
+                    if (userProfile) {
+                        setProfile(userProfile);
+                        
+                        // Sadece SIGNED_IN event'inde yönlendir
+                        if (event === "SIGNED_IN") {
+                            // Rol bazlı yönlendirme
+                            if (userProfile.role === "broker") {
+                                router.push("/broker");
+                            } else {
+                                router.push("/dashboard");
+                            }
+                        }
+                    }
                 } else {
                     setProfile(null);
-                }
-
-                // Oturum açıldığında yönlendir
-                if (event === "SIGNED_IN" && profile) {
-                    // Rol bazlı yönlendirme
-                    if (profile.role === "broker") {
-                        router.push("/broker");
-                    } else {
-                        router.push("/dashboard");
-                    }
                 }
 
                 // Oturum kapandığında giriş sayfasına yönlendir
                 if (event === "SIGNED_OUT") {
                     router.push("/login");
                 }
+
+                setLoading(false);
             }
         );
 
@@ -169,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [fetchProfile, router, profile]);
+    }, [fetchProfile, router]); // profile KALDIRILDI!
 
     // Giriş yap
     const signIn = async (
@@ -247,22 +277,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { error: getAuthErrorMessage(authError.message) };
             }
 
-            // Profil tablosuna kaydet (trigger ile de yapılabilir)
-            if (authData.user) {
-                const { error: profileError } = await supabase.from("profiles").insert({
-                    id: authData.user.id,
-                    email: data.email,
-                    full_name: data.fullName,
-                    phone: data.phone,
-                    role: data.role,
-                    xp: 0,
-                });
-
-                if (profileError) {
-                    console.error("Profil oluşturma hatası:", profileError);
-                    // Profil hatası kritik değil, kullanıcı yine de oluşturuldu
-                }
-            }
+            // NOT: Profil trigger tarafından otomatik oluşturulacak
+            // Manuel insert yapmaya gerek yok
 
             return {};
         } catch (error) {
