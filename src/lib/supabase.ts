@@ -1,14 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 // Supabase yapılandırma değerleri
-// .env.local dosyasından alınır
-// Build sırasında env vars olmayabilir, bu durumu ele alıyoruz
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Supabase istemcisi - tarayıcı tarafında kullanım için
-// Not: Gerçek bir URL olmadan çalışmayacaktır, sadece build için geçici çözüm
-export const supabase = createClient(
+// Supabase Browser Client - cookie tabanlı session yönetimi
+export const supabase = createBrowserClient(
     supabaseUrl || 'https://placeholder.supabase.co',
     supabaseAnonKey || 'placeholder-key'
 );
@@ -29,7 +26,6 @@ export interface UserProfile {
     created_at: string;
     updated_at: string;
 }
-
 
 // Auth hata mesajları - Türkçe
 export const AUTH_ERRORS: Record<string, string> = {
