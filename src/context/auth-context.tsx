@@ -120,15 +120,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
 
-                if (session) {
-                    setSession(session);
-                    setUser(session.user);
-                    const userProfile = await fetchProfile(session.user.id);
-                    setProfile(userProfile);
-                }
-            } catch (error) {
-                console.error("Auth başlatma hatası:", error);
-            } finally {
+            if (session) {
+                setSession(session);
+                setUser(session.user);
+                const userProfile = await fetchProfile(session.user.id);
+                setProfile(userProfile);
+            }
+        } catch (error) {
+            console.error("Auth başlatma hatası:", error);
+        } finally {
                 setLoading(false);
             }
         };
@@ -141,17 +141,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setSession(session);
                 setUser(session?.user ?? null);
 
+                let resolvedProfile: UserProfile | null = null;
                 if (session?.user) {
-                    const userProfile = await fetchProfile(session.user.id);
-                    setProfile(userProfile);
+                    resolvedProfile = await fetchProfile(session.user.id);
+                    setProfile(resolvedProfile);
                 } else {
                     setProfile(null);
                 }
 
                 // Oturum açıldığında yönlendir
-                if (event === "SIGNED_IN" && profile) {
+                if (event === "SIGNED_IN" && resolvedProfile) {
                     // Rol bazlı yönlendirme
-                    if (profile.role === "broker") {
+                    if (resolvedProfile.role === "broker") {
                         router.push("/broker");
                     } else {
                         router.push("/dashboard");
@@ -169,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [fetchProfile, router, profile]);
+    }, [fetchProfile, router]);
 
     // Giriş yap
     const signIn = async (
