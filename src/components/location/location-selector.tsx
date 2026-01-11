@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { MapPin, X, ChevronDown, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,14 +52,17 @@ export function LocationSelector({
         setSelectedNeighborhood("");
     }, [selectedDistrict]);
 
-    const city = getCityById(selectedCity);
-    const district = getDistrictById(selectedCity, selectedDistrict);
+    const city = useMemo(() => getCityById(selectedCity), [selectedCity]);
+    const district = useMemo(
+        () => getDistrictById(selectedCity, selectedDistrict),
+        [selectedCity, selectedDistrict]
+    );
 
     // Lokasyon ekle
-    const handleAddLocation = () => {
+    const handleAddLocation = useCallback(() => {
         if (!selectedCity) return;
 
-        const cityData = getCityById(selectedCity);
+        const cityData = city;
         if (!cityData) return;
 
         const newLocation: SelectedLocation = {
@@ -100,14 +103,24 @@ export function LocationSelector({
             setSelectedDistrict("");
             setSelectedNeighborhood("");
         }
-    };
+    }, [
+        selectedCity,
+        selectedDistrict,
+        selectedNeighborhood,
+        showNeighborhoods,
+        value,
+        maxSelections,
+        onChange,
+        city,
+        district,
+    ]);
 
     // Lokasyon sil
-    const handleRemoveLocation = (index: number) => {
+    const handleRemoveLocation = useCallback((index: number) => {
         const newLocations = [...value];
         newLocations.splice(index, 1);
         onChange(newLocations);
-    };
+    }, [value, onChange]);
 
     return (
         <div className="space-y-3">
