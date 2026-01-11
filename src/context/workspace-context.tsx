@@ -55,17 +55,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const isBroker = userRole === 'broker';
 
     // Demo mode kontrolü
-    const inDemoMode = useMemo(() => authDemoMode || isDemoMode(), [authDemoMode]);
+    const [inDemoMode, setInDemoMode] = useState(() => authDemoMode || isDemoMode());
+    useEffect(() => {
+        setInDemoMode(authDemoMode || isDemoMode());
+    }, [authDemoMode]);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === "demo_mode") {
+                setInDemoMode(authDemoMode || isDemoMode());
+            }
+        };
+        window.addEventListener("storage", handleStorage);
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+        };
+    }, [authDemoMode]);
+    const demoTimestamp = useMemo(() => new Date().toISOString(), []);
     const demoMembers = useMemo(() => (
         DEMO_AGENTS.map((agent, index) => ({
             id: `member-${index}`,
             workspace_id: DEMO_WORKSPACE.id,
             user_id: agent.id,
             role: agent.role as WorkspaceRole,
-            invited_at: new Date().toISOString(),
-            joined_at: new Date().toISOString(),
+            invited_at: demoTimestamp,
+            joined_at: demoTimestamp,
         }))
-    ), []);
+    ), [demoTimestamp]);
 
     // Yetki kontrolleri
     const canManageMembers = isBroker;
