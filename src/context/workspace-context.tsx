@@ -6,6 +6,7 @@ import {
     useState,
     useEffect,
     useCallback,
+    useMemo,
     ReactNode,
 } from "react";
 import { useAuth } from "./auth-context";
@@ -54,7 +55,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const isBroker = userRole === 'broker';
 
     // Demo mode kontrolü
-    const inDemoMode = authDemoMode || isDemoMode();
+    const inDemoMode = useMemo(() => authDemoMode || isDemoMode(), [authDemoMode]);
+    const demoMembers = useMemo(() => (
+        DEMO_AGENTS.map((agent, index) => ({
+            id: `member-${index}`,
+            workspace_id: DEMO_WORKSPACE.id,
+            user_id: agent.id,
+            role: agent.role as WorkspaceRole,
+            invited_at: new Date().toISOString(),
+            joined_at: new Date().toISOString(),
+        }))
+    ), []);
 
     // Yetki kontrolleri
     const canManageMembers = isBroker;
@@ -77,14 +88,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             // Demo modunda demo workspace kullan
             if (inDemoMode) {
                 setWorkspace(DEMO_WORKSPACE as Workspace);
-                setMembers(DEMO_AGENTS.map((agent, index) => ({
-                    id: `member-${index}`,
-                    workspace_id: DEMO_WORKSPACE.id,
-                    user_id: agent.id,
-                    role: agent.role as WorkspaceRole,
-                    invited_at: new Date().toISOString(),
-                    joined_at: new Date().toISOString(),
-                })));
+                setMembers(demoMembers);
                 return;
             }
 
@@ -100,7 +104,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, [user, inDemoMode]);
+    }, [user, inDemoMode, demoMembers]);
 
     // İlk yükleme
     useEffect(() => {

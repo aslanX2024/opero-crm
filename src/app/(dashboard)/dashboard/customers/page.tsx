@@ -174,13 +174,13 @@ export default function CustomersPage() {
     };
 
     // İstatistikler
-    const stats = {
+    const stats = useMemo(() => ({
         total: DEMO_CUSTOMERS.length,
         hot: DEMO_CUSTOMERS.filter((c) => c.lead_score >= 70).length,
         warm: DEMO_CUSTOMERS.filter((c) => c.lead_score >= 40 && c.lead_score < 70).length,
         cold: DEMO_CUSTOMERS.filter((c) => c.lead_score < 40).length,
         overdue: DEMO_CUSTOMERS.filter((c) => isContactOverdue(c.last_contact_date)).length,
-    };
+    }), []);
 
     return (
         <div className="space-y-6">

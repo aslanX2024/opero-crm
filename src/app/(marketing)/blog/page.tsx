@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 export const revalidate = 60; // Revalidate every 60 seconds
+const PAGE_SIZE = 50;
 
 interface BlogPost {
     id: string;
@@ -26,7 +27,8 @@ async function getBlogPosts(): Promise<BlogPost[]> {
         .from("blog_posts")
         .select("id, slug, title, excerpt, category, featured, read_time, created_at")
         .eq("published", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, PAGE_SIZE - 1);
 
     if (error) {
         console.error("Error fetching blog posts:", error);
