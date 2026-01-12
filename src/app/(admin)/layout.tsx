@@ -8,12 +8,11 @@ import {
     FileText,
     MessageSquareQuote,
     HelpCircle,
-    Settings,
     ArrowLeft,
     Menu,
     X,
-    Building2,
 } from "lucide-react";
+import Image from "next/image";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -73,10 +72,14 @@ export default function AdminLayout({
                 <div className="flex flex-col h-full">
                     {/* Logo */}
                     <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-                        <Link href="/admin" className="flex items-center gap-2">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                                <Building2 className="w-5 h-5 text-white" />
-                            </div>
+                        <Link href="/admin" className="flex items-center gap-3">
+                            <Image
+                                src="/icon-512x512.png"
+                                alt="OPERO"
+                                width={40}
+                                height={40}
+                                className="w-10 h-10 rounded-xl"
+                            />
                             <div>
                                 <span className="font-bold text-gray-900 dark:text-white">OPERO</span>
                                 <span className="text-xs text-gray-500 block">Admin Panel</span>

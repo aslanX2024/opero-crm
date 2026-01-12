@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import Image from "next/image";
 
 const footerLinks = {
     urun: [
@@ -35,13 +35,14 @@ export function MarketingFooter() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
                         {/* Brand */}
                         <div className="col-span-2 md:col-span-1">
-                            <Link href="/" className="flex items-center gap-2 mb-4">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                                    <Building2 className="w-5 h-5 text-white" />
-                                </div>
-                                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                                    OPERO
-                                </span>
+                            <Link href="/" className="mb-4 inline-block">
+                                <Image
+                                    src="/logo-light.png"
+                                    alt="OPERO"
+                                    width={140}
+                                    height={40}
+                                    className="h-10 w-auto"
+                                />
                             </Link>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                 Türkiye'nin lider emlak CRM platformu. Satışlarınızı artırın, müşterilerinizi takip edin.
