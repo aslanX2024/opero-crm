@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
     DndContext,
@@ -12,7 +12,6 @@ import {
     useSensors,
     DragStartEvent,
     DragEndEvent,
-    DragOverEvent,
 } from "@dnd-kit/core";
 import {
     SortableContext,
@@ -46,6 +45,7 @@ import {
     TrendingUp,
     GripVertical,
     Home,
+    Loader2,
     FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,9 +61,9 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+import { getDeals, updateDealStage, Deal as ServiceDeal, DealStage } from "@/lib/services/deals";
 import {
-    Deal,
-    DEMO_DEALS,
     PIPELINE_STAGES,
     STAGE_ORDER,
     DEAL_PRIORITIES,
@@ -74,13 +74,35 @@ import {
     PipelineStage,
 } from "@/types/pipeline";
 
+// Extended Deal type for UI
+interface Deal {
+    id: string;
+    title: string;
+    expected_value: number;
+    stage: PipelineStage;
+    priority: "low" | "normal" | "high" | "urgent";
+    stage_entered_at: string;
+    last_activity_at: string;
+    updated_at: string;
+    next_action?: string | null;
+    notes?: string | null;
+    property_id: string;
+    property_title: string;
+    property_price: number;
+    customer_id: string;
+    customer_name: string;
+    customer_phone: string;
+}
+
 // Pipeline sayfası
 export default function PipelinePage() {
+    const { user } = useAuth();
     const [view, setView] = useState<"kanban" | "list" | "table">("kanban");
     const [filterOpen, setFilterOpen] = useState(false);
     const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-    const [deals, setDeals] = useState<Deal[]>(DEMO_DEALS);
+    const [deals, setDeals] = useState<Deal[]>([]);
     const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+    const [loading, setLoading] = useState(true);
 
     // Filtreler
     const [filters, setFilters] = useState({
@@ -88,6 +110,44 @@ export default function PipelinePage() {
         propertyType: "",
         agent: "",
     });
+
+    // Veritabanından deals'leri çek
+    useEffect(() => {
+        async function fetchDeals() {
+            if (!user?.id) return;
+
+            setLoading(true);
+            try {
+                const data = await getDeals(user.id);
+                // Map to UI Deal type with null safety
+                const mappedDeals: Deal[] = data.map(d => ({
+                    id: d.id,
+                    title: d.title,
+                    expected_value: d.expected_value || 0,
+                    stage: (d.stage || "lead") as PipelineStage,
+                    priority: (d.priority || "normal") as Deal["priority"],
+                    stage_entered_at: d.stage_entered_at || new Date().toISOString().split("T")[0],
+                    last_activity_at: d.last_activity_at || new Date().toISOString(),
+                    updated_at: d.updated_at || new Date().toISOString(),
+                    next_action: d.next_action,
+                    notes: d.notes,
+                    property_id: d.property?.id || d.property_id || "",
+                    property_title: d.property?.title || d.title,
+                    property_price: d.property?.price || d.expected_value || 0,
+                    customer_id: d.customer?.id || d.customer_id || "",
+                    customer_name: d.customer?.full_name || "Müşteri",
+                    customer_phone: d.customer?.phone || "",
+                }));
+                setDeals(mappedDeals);
+            } catch (error) {
+                console.error("Error fetching deals:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchDeals();
+    }, [user?.id]);
 
     // DnD sensörleri
     const sensors = useSensors(
@@ -112,16 +172,17 @@ export default function PipelinePage() {
 
     // Toplam değer
     const totalValue = useMemo(() => {
-        return deals.reduce((sum, d) => sum + d.expected_value, 0);
+        return deals.reduce((sum, d) => sum + (d.expected_value || 0), 0);
     }, [deals]);
 
     // Weighted pipeline değeri
     const weightedValue = useMemo(() => {
-        return calculateWeightedValue(deals);
+        return calculateWeightedValue(deals as any);
     }, [deals]);
 
     // Deal taşıma
-    const moveDeal = (dealId: string, newStage: PipelineStage) => {
+    const moveDeal = async (dealId: string, newStage: PipelineStage) => {
+        // Önce UI'ı güncelle (optimistic update)
         setDeals(prev => prev.map(d => {
             if (d.id === dealId) {
                 const xp = getStageChangeXP(d.stage, newStage);
@@ -131,13 +192,43 @@ export default function PipelinePage() {
                 }
                 return {
                     ...d,
-                    stage: newStage,
+                    stage: newStage as any,
                     stage_entered_at: new Date().toISOString().split("T")[0],
                     updated_at: new Date().toISOString(),
                 };
             }
             return d;
         }));
+
+        // Veritabanını güncelle
+        try {
+            await updateDealStage(dealId, newStage as DealStage);
+        } catch (error) {
+            console.error("Error updating deal stage:", error);
+            // Hata durumunda eski duruma dön
+            if (user?.id) {
+                const data = await getDeals(user.id);
+                const mappedDeals: Deal[] = data.map(d => ({
+                    id: d.id,
+                    title: d.title,
+                    expected_value: d.expected_value || 0,
+                    stage: (d.stage || "lead") as PipelineStage,
+                    priority: (d.priority || "normal") as Deal["priority"],
+                    stage_entered_at: d.stage_entered_at || new Date().toISOString().split("T")[0],
+                    last_activity_at: d.last_activity_at || new Date().toISOString(),
+                    updated_at: d.updated_at || new Date().toISOString(),
+                    next_action: d.next_action,
+                    notes: d.notes,
+                    property_id: d.property?.id || d.property_id || "",
+                    property_title: d.property?.title || d.title,
+                    property_price: d.property?.price || d.expected_value || 0,
+                    customer_id: d.customer?.id || d.customer_id || "",
+                    customer_name: d.customer?.full_name || "Müşteri",
+                    customer_phone: d.customer?.phone || "",
+                }));
+                setDeals(mappedDeals);
+            }
+        }
     };
 
     // Drag başladığında
@@ -184,6 +275,15 @@ export default function PipelinePage() {
         setSelectedDeal(deal);
     };
 
+    // Loading state
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Başlık ve Özet */}
@@ -191,7 +291,10 @@ export default function PipelinePage() {
                 <div>
                     <h1 className="text-2xl font-bold">Satış Pipeline</h1>
                     <p className="text-gray-500 dark:text-gray-400">
-                        {deals.length} aktif fırsat • Kartları sürükleyerek aşama değiştirin
+                        {deals.length > 0
+                            ? `${deals.length} aktif fırsat • Kartları sürükleyerek aşama değiştirin`
+                            : "Henüz fırsat eklenmemiş"
+                        }
                     </p>
                 </div>
 

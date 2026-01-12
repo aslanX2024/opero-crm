@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
     Plus,
@@ -24,12 +24,13 @@ import {
     TreePine,
     Store,
     Castle,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -43,12 +44,11 @@ import {
 import {
     Collapsible,
     CollapsibleContent,
-    CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+import { getProperties, Property } from "@/lib/services/properties";
 import {
-    Property,
-    DEMO_PROPERTIES,
     LISTING_TYPES,
     PROPERTY_TYPES,
     PROPERTY_STATUSES,
@@ -59,7 +59,7 @@ import {
 } from "@/types/property";
 
 // Mülk tipi ikonu
-function getPropertyIcon(type: Property["property_type"]) {
+function getPropertyIcon(type: string) {
     switch (type) {
         case "daire": return <Building2 className="w-4 h-4" />;
         case "villa": return <Castle className="w-4 h-4" />;
@@ -72,7 +72,7 @@ function getPropertyIcon(type: Property["property_type"]) {
 }
 
 // Durum rengi
-function getStatusColor(status: Property["status"]) {
+function getStatusColor(status: string) {
     switch (status) {
         case "aktif": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
         case "satildi": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
@@ -84,6 +84,10 @@ function getStatusColor(status: Property["status"]) {
 
 // Portföy sayfası
 export default function PortfolioPage() {
+    const { user } = useAuth();
+    const [properties, setProperties] = useState<Property[]>([]);
+    const [loading, setLoading] = useState(true);
+
     // State
     const [view, setView] = useState<"grid" | "list" | "map">("grid");
     const [filterOpen, setFilterOpen] = useState(false);
@@ -100,9 +104,28 @@ export default function PortfolioPage() {
         priceRange: [0, 50000000] as [number, number],
     });
 
+    // Veritabanından mülkleri çek
+    useEffect(() => {
+        async function fetchProperties() {
+            if (!user?.id) return;
+
+            setLoading(true);
+            try {
+                const data = await getProperties(user.id);
+                setProperties(data);
+            } catch (error) {
+                console.error("Error fetching properties:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchProperties();
+    }, [user?.id]);
+
     // Filtrelenmiş mülkler
     const filteredProperties = useMemo(() => {
-        let result = [...DEMO_PROPERTIES];
+        let result = [...properties];
 
         // Arama
         if (searchQuery) {
@@ -112,7 +135,7 @@ export default function PortfolioPage() {
                     p.title.toLowerCase().includes(query) ||
                     p.city.toLowerCase().includes(query) ||
                     p.district.toLowerCase().includes(query) ||
-                    p.address.toLowerCase().includes(query)
+                    (p.address || "").toLowerCase().includes(query)
             );
         }
 
@@ -132,13 +155,13 @@ export default function PortfolioPage() {
         }
 
         // Şehir filtresi
-        if (filters.city) {
+        if (filters.city && filters.city !== "all") {
             result = result.filter((p) => p.city === filters.city);
         }
 
         // Oda sayısı filtresi
         if (filters.roomCount.length > 0) {
-            result = result.filter((p) => filters.roomCount.includes(p.room_count));
+            result = result.filter((p) => p.room_count && filters.roomCount.includes(p.room_count));
         }
 
         // Fiyat aralığı filtresi
@@ -163,7 +186,7 @@ export default function PortfolioPage() {
         }
 
         return result;
-    }, [searchQuery, filters, sortBy]);
+    }, [properties, searchQuery, filters, sortBy]);
 
     // Checkbox toggle
     const toggleFilter = (key: keyof typeof filters, value: string) => {
@@ -187,6 +210,15 @@ export default function PortfolioPage() {
         });
         setSearchQuery("");
     };
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -411,7 +443,7 @@ export default function PortfolioPage() {
             )}
 
             {/* Liste Görünümü */}
-            {view === "list" && (
+            {view === "list" && filteredProperties.length > 0 && (
                 <Card>
                     <div className="overflow-x-auto">
                         <table className="w-full">
@@ -451,7 +483,7 @@ export default function PortfolioPage() {
                                                 <div>
                                                     <p className="font-medium text-sm">{property.title}</p>
                                                     <p className="text-xs text-gray-500">
-                                                        {LISTING_TYPES[property.listing_type]} • {PROPERTY_TYPES[property.property_type]}
+                                                        {LISTING_TYPES[property.listing_type as keyof typeof LISTING_TYPES]} • {PROPERTY_TYPES[property.property_type as keyof typeof PROPERTY_TYPES]}
                                                     </p>
                                                 </div>
                                             </div>
@@ -470,7 +502,7 @@ export default function PortfolioPage() {
                                         </td>
                                         <td className="px-4 py-4">
                                             <Badge className={getStatusColor(property.status)}>
-                                                {PROPERTY_STATUSES[property.status]}
+                                                {PROPERTY_STATUSES[property.status as keyof typeof PROPERTY_STATUSES]}
                                             </Badge>
                                         </td>
                                         <td className="px-4 py-4">
@@ -509,40 +541,31 @@ export default function PortfolioPage() {
             )}
 
             {/* Boş durum */}
-            {filteredProperties.length === 0 && (
+            {filteredProperties.length === 0 && !loading && (
                 <Card className="p-12 text-center">
                     <Building2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium mb-2">Mülk Bulunamadı</h3>
+                    <h3 className="text-lg font-medium mb-2">
+                        {properties.length === 0 ? "Henüz Mülk Eklenmemiş" : "Mülk Bulunamadı"}
+                    </h3>
                     <p className="text-gray-500 mb-4">
-                        Arama kriterlerinize uygun mülk bulunamadı.
+                        {properties.length === 0
+                            ? "İlk mülkünüzü ekleyerek portföyünüzü oluşturmaya başlayın."
+                            : "Arama kriterlerinize uygun mülk bulunamadı."
+                        }
                     </p>
-                    <Button variant="outline" onClick={clearFilters}>
-                        Filtreleri Temizle
-                    </Button>
+                    {properties.length === 0 ? (
+                        <Link href="/dashboard/portfolio/new">
+                            <Button>
+                                <Plus className="w-4 h-4 mr-2" />
+                                İlk Mülkü Ekle
+                            </Button>
+                        </Link>
+                    ) : (
+                        <Button variant="outline" onClick={clearFilters}>
+                            Filtreleri Temizle
+                        </Button>
+                    )}
                 </Card>
-            )}
-
-            {/* Pagination */}
-            {filteredProperties.length > 0 && (
-                <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-500">
-                        Toplam {filteredProperties.length} mülk
-                    </p>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled>
-                            Önceki
-                        </Button>
-                        <Button variant="outline" size="sm" className="bg-blue-50 border-blue-200">
-                            1
-                        </Button>
-                        <Button variant="outline" size="sm">
-                            2
-                        </Button>
-                        <Button variant="outline" size="sm">
-                            Sonraki
-                        </Button>
-                    </div>
-                </div>
             )}
         </div>
     );
@@ -563,7 +586,7 @@ function PropertyCard({ property }: { property: Property }) {
                 {/* Placeholder görsel */}
                 <div className="absolute inset-0 flex items-center justify-center">
                     {getPropertyIcon(property.property_type)}
-                    <span className="ml-2 text-gray-500">{PROPERTY_TYPES[property.property_type]}</span>
+                    <span className="ml-2 text-gray-500">{PROPERTY_TYPES[property.property_type as keyof typeof PROPERTY_TYPES]}</span>
                 </div>
 
                 {/* Tür etiketi */}
@@ -576,14 +599,14 @@ function PropertyCard({ property }: { property: Property }) {
                                 : "bg-orange-500 hover:bg-orange-600"
                         )}
                     >
-                        {LISTING_TYPES[property.listing_type]}
+                        {LISTING_TYPES[property.listing_type as keyof typeof LISTING_TYPES]}
                     </Badge>
                 </div>
 
                 {/* Durum etiketi */}
                 <div className="absolute top-3 right-3">
                     <Badge className={cn("text-xs", getStatusColor(property.status))}>
-                        {PROPERTY_STATUSES[property.status]}
+                        {PROPERTY_STATUSES[property.status as keyof typeof PROPERTY_STATUSES]}
                     </Badge>
                 </div>
 
@@ -632,11 +655,11 @@ function PropertyCard({ property }: { property: Property }) {
                 <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
                         <BedDouble className="w-4 h-4" />
-                        <span>{property.room_count}</span>
+                        <span>{property.room_count || "-"}</span>
                     </div>
                     <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
                         <Maximize2 className="w-4 h-4" />
-                        <span>{property.gross_area} m²</span>
+                        <span>{property.gross_area || "-"} m²</span>
                     </div>
                     <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
                         <Eye className="w-4 h-4" />

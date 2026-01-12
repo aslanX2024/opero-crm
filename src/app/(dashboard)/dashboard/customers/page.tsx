@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
     Plus,
@@ -25,6 +25,7 @@ import {
     Edit,
     Eye,
     Home,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,13 +44,12 @@ import {
 import {
     Collapsible,
     CollapsibleContent,
-    CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+import { getCustomers, Customer } from "@/lib/services/customers";
 import {
-    Customer,
-    DEMO_CUSTOMERS,
     CUSTOMER_TYPES,
     CUSTOMER_STATUSES,
     LEAD_SOURCES,
@@ -61,7 +61,7 @@ import {
 } from "@/types/customer";
 
 // Durum rengi
-function getStatusColor(status: Customer["status"]) {
+function getStatusColor(status: string) {
     switch (status) {
         case "yeni": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
         case "iletisimde": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
@@ -74,6 +74,10 @@ function getStatusColor(status: Customer["status"]) {
 
 // Müşteri listesi sayfası
 export default function CustomersPage() {
+    const { user } = useAuth();
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [loading, setLoading] = useState(true);
+
     // State
     const [activeTab, setActiveTab] = useState("all");
     const [filterOpen, setFilterOpen] = useState(false);
@@ -91,9 +95,28 @@ export default function CustomersPage() {
         region: "",
     });
 
+    // Veritabanından müşterileri çek
+    useEffect(() => {
+        async function fetchCustomers() {
+            if (!user?.id) return;
+
+            setLoading(true);
+            try {
+                const data = await getCustomers(user.id);
+                setCustomers(data);
+            } catch (error) {
+                console.error("Error fetching customers:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchCustomers();
+    }, [user?.id]);
+
     // Filtrelenmiş müşteriler
     const filteredCustomers = useMemo(() => {
-        let result = [...DEMO_CUSTOMERS];
+        let result = [...customers];
 
         // Tab filtresi
         if (activeTab !== "all") {
@@ -107,7 +130,7 @@ export default function CustomersPage() {
                 (c) =>
                     c.full_name.toLowerCase().includes(query) ||
                     c.phone.includes(query) ||
-                    c.email.toLowerCase().includes(query)
+                    (c.email || "").toLowerCase().includes(query)
             );
         }
 
@@ -127,7 +150,7 @@ export default function CustomersPage() {
         }
 
         // Kaynak filtresi
-        if (filters.leadSource) {
+        if (filters.leadSource && filters.leadSource !== "all") {
             result = result.filter((c) => c.lead_source === filters.leadSource);
         }
 
@@ -142,7 +165,7 @@ export default function CustomersPage() {
         result.sort((a, b) => b.lead_score - a.lead_score);
 
         return result;
-    }, [activeTab, searchQuery, filters]);
+    }, [customers, activeTab, searchQuery, filters]);
 
     // Checkbox toggle
     const toggleStatusFilter = (status: string) => {
@@ -175,12 +198,21 @@ export default function CustomersPage() {
 
     // İstatistikler
     const stats = {
-        total: DEMO_CUSTOMERS.length,
-        hot: DEMO_CUSTOMERS.filter((c) => c.lead_score >= 70).length,
-        warm: DEMO_CUSTOMERS.filter((c) => c.lead_score >= 40 && c.lead_score < 70).length,
-        cold: DEMO_CUSTOMERS.filter((c) => c.lead_score < 40).length,
-        overdue: DEMO_CUSTOMERS.filter((c) => isContactOverdue(c.last_contact_date)).length,
+        total: customers.length,
+        hot: customers.filter((c) => c.lead_score >= 70).length,
+        warm: customers.filter((c) => c.lead_score >= 40 && c.lead_score < 70).length,
+        cold: customers.filter((c) => c.lead_score < 40).length,
+        overdue: customers.filter((c) => c.last_contact_date && isContactOverdue(c.last_contact_date)).length,
     };
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -391,8 +423,8 @@ export default function CustomersPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {filteredCustomers.map((customer) => {
-                                        const overdue = isContactOverdue(customer.last_contact_date);
-                                        const daysSince = getDaysSinceContact(customer.last_contact_date);
+                                        const overdue = customer.last_contact_date ? isContactOverdue(customer.last_contact_date) : false;
+                                        const daysSince = customer.last_contact_date ? getDaysSinceContact(customer.last_contact_date) : null;
 
                                         return (
                                             <tr
@@ -419,7 +451,7 @@ export default function CustomersPage() {
                                                     </Badge>
                                                 </td>
                                                 <td className="px-4 py-4">
-                                                    <p className="text-sm">{formatBudget(customer.budget_min, customer.budget_max)}</p>
+                                                    <p className="text-sm">{formatBudget(customer.budget_min ?? 0, customer.budget_max ?? 0)}</p>
                                                 </td>
                                                 <td className="px-4 py-4">
                                                     <p className="text-sm">{customer.preferred_regions.slice(0, 2).join(", ")}</p>
@@ -435,7 +467,7 @@ export default function CustomersPage() {
                                                             <AlertTriangle className="w-4 h-4 text-orange-500" />
                                                         )}
                                                         <span className={cn("text-sm", overdue && "text-orange-500 font-medium")}>
-                                                            {daysSince === 0 ? "Bugün" : `${daysSince} gün önce`}
+                                                            {daysSince === null ? "-" : daysSince === 0 ? "Bugün" : `${daysSince} gün önce`}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -577,7 +609,7 @@ export default function CustomersPage() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <Target className="w-4 h-4 text-gray-400" />
-                                        <span className="text-sm">{LEAD_SOURCES[selectedCustomer.lead_source]}</span>
+                                        <span className="text-sm">{selectedCustomer.lead_source ? LEAD_SOURCES[selectedCustomer.lead_source as keyof typeof LEAD_SOURCES] || selectedCustomer.lead_source : "-"}</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -590,7 +622,7 @@ export default function CustomersPage() {
                                 <CardContent className="space-y-3">
                                     <div className="flex items-center gap-3">
                                         <DollarSign className="w-4 h-4 text-gray-400" />
-                                        <span className="text-sm">{formatBudget(selectedCustomer.budget_min, selectedCustomer.budget_max)}</span>
+                                        <span className="text-sm">{formatBudget(selectedCustomer.budget_min ?? 0, selectedCustomer.budget_max ?? 0)}</span>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <MapPin className="w-4 h-4 text-gray-400" />
@@ -619,7 +651,7 @@ export default function CustomersPage() {
                                             <p className="text-xs text-gray-500">Teklif</p>
                                         </div>
                                         <div>
-                                            <p className="text-2xl font-bold">{getDaysSinceContact(selectedCustomer.last_contact_date)}</p>
+                                            <p className="text-2xl font-bold">{selectedCustomer.last_contact_date ? getDaysSinceContact(selectedCustomer.last_contact_date) : "-"}</p>
                                             <p className="text-xs text-gray-500">Gün Önce</p>
                                         </div>
                                     </div>
