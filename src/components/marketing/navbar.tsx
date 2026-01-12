@@ -44,9 +44,9 @@ export function MarketingNavbar() {
                         <Image
                             src="/logo-light.png"
                             alt="OPERO"
-                            width={140}
-                            height={40}
-                            className="h-10 w-auto"
+                            width={180}
+                            height={48}
+                            className="h-12 w-auto"
                             priority
                         />
                     </Link>
