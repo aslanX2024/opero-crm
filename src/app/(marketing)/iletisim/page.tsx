@@ -52,8 +52,8 @@ export default function ContactPage() {
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900 dark:text-white">Telefon</h3>
-                                        <a href="tel:+902121234567" className="text-gray-600 dark:text-gray-400 hover:text-blue-600">
-                                            +90 212 123 45 67
+                                        <a href="tel:+903128700800" className="text-gray-600 dark:text-gray-400 hover:text-blue-600">
+                                            0 312 870 0 800
                                         </a>
                                     </div>
                                 </div>
@@ -66,8 +66,8 @@ export default function ContactPage() {
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900 dark:text-white">E-posta</h3>
-                                        <a href="mailto:destek@opero.tr" className="text-gray-600 dark:text-gray-400 hover:text-blue-600">
-                                            destek@opero.tr
+                                        <a href="mailto:info@opero.tr" className="text-gray-600 dark:text-gray-400 hover:text-blue-600">
+                                            info@opero.tr
                                         </a>
                                     </div>
                                 </div>
@@ -81,7 +81,9 @@ export default function ContactPage() {
                                     <div>
                                         <h3 className="font-semibold text-gray-900 dark:text-white">Adres</h3>
                                         <p className="text-gray-600 dark:text-gray-400">
-                                            İstanbul, Türkiye
+                                            Ostim OSB, 100. Yıl Blv<br />
+                                            Ostim Prestij İş Merkezi<br />
+                                            D:2.Kat, 55/A/20, Ankara
                                         </p>
                                     </div>
                                 </div>

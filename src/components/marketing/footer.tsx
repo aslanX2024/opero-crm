@@ -151,7 +151,7 @@ export function MarketingFooter() {
 
                 {/* Bottom Bar */}
                 <div className="py-6 border-t border-gray-200 dark:border-gray-800">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             © 2026 OPERO. Tüm hakları saklıdır.
                         </p>
@@ -160,6 +160,12 @@ export function MarketingFooter() {
                                 🇹🇷 Türkiye'de geliştirildi
                             </span>
                         </div>
+                    </div>
+                    {/* Şirket Bilgileri */}
+                    <div className="text-center text-xs text-gray-400 dark:text-gray-500 space-y-1">
+                        <p className="font-medium">Siper Bilişim Sanayi ve Ticaret Limited Şirketi</p>
+                        <p>Ostim OSB, 100. Yıl Blv Ostim Prestij İş Merkezi D:2.Kat, 55/A/20, Ankara</p>
+                        <p>Tel: 0 312 870 0 800 • E-posta: info@opero.tr</p>
                     </div>
                 </div>
             </div>

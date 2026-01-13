@@ -6,6 +6,7 @@ import { useAuth, SignUpData } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectContent,
@@ -35,6 +36,8 @@ export default function RegisterPage() {
         role: "danisman", // Varsayılan rol: Danışman
     });
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [acceptTerms, setAcceptTerms] = useState(false);
+    const [acceptKVKK, setAcceptKVKK] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -66,6 +69,12 @@ export default function RegisterPage() {
         }
         if (formData.password !== confirmPassword) {
             return "Şifreler eşleşmiyor";
+        }
+        if (!acceptTerms) {
+            return "Kullanım koşullarını kabul etmelisiniz";
+        }
+        if (!acceptKVKK) {
+            return "KVKK aydınlatma metnini okuduğunuzu onaylamalısınız";
         }
         return null;
     };
@@ -247,6 +256,33 @@ export default function RegisterPage() {
                             required
                             disabled={loading}
                         />
+                    </div>
+
+                    {/* Onay Checkbox'ları */}
+                    <div className="space-y-3 pt-4 border-t">
+                        <div className="flex items-start gap-3">
+                            <Checkbox
+                                id="acceptTerms"
+                                checked={acceptTerms}
+                                onCheckedChange={(checked) => setAcceptTerms(checked === true)}
+                                disabled={loading}
+                            />
+                            <label htmlFor="acceptTerms" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                                <Link href="/kosullar" target="_blank" className="text-blue-600 hover:underline">Kullanım Koşullarını</Link> ve{" "}
+                                <Link href="/gizlilik" target="_blank" className="text-blue-600 hover:underline">Gizlilik Politikasını</Link> okudum ve kabul ediyorum.
+                            </label>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <Checkbox
+                                id="acceptKVKK"
+                                checked={acceptKVKK}
+                                onCheckedChange={(checked) => setAcceptKVKK(checked === true)}
+                                disabled={loading}
+                            />
+                            <label htmlFor="acceptKVKK" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                                <Link href="/kvkk" target="_blank" className="text-blue-600 hover:underline">KVKK Aydınlatma Metnini</Link> okudum, kişisel verilerimin işlenmesini onaylıyorum.
+                            </label>
+                        </div>
                     </div>
                 </CardContent>
 
