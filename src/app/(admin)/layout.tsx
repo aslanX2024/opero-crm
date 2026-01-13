@@ -30,25 +30,54 @@ export default function AdminLayout({
 }) {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, loading } = useAuth();
+    const { user, profile, loading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
 
-    // Yetki kontrolü - sadece authenticated kullanıcılar
+    // Yetki kontrolü - sadece admin rolündeki kullanıcılar
     useEffect(() => {
-        if (!loading && !user) {
-            router.push("/login");
-        }
-    }, [user, loading, router]);
+        // Auth hala yükleniyorsa bekle
+        if (loading) return;
 
-    if (loading) {
+        // User yoksa login'e yönlendir
+        if (!user) {
+            router.push("/login");
+            return;
+        }
+
+        // Profile varsa kontrol et
+        if (profile) {
+            if (profile.role !== "admin") {
+                // Admin değilse dashboard'a yönlendir
+                router.push("/dashboard");
+            } else {
+                // Admin, erişime izin ver
+                setCheckingAuth(false);
+            }
+        } else {
+            // Profile null ama user var - biraz bekle, sonra dashboard'a yönlendir
+            const timer = setTimeout(() => {
+                console.log("Profile yüklenemedi, dashboard'a yönlendiriliyor");
+                router.push("/dashboard");
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [user, profile, loading, router]);
+
+    // Loading state
+    if (loading || checkingAuth) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-sm text-gray-500">Yetki kontrol ediliyor...</p>
+                </div>
             </div>
         );
     }
 
-    if (!user) {
+    // User yoksa null döndür (yönlendirme sırasında)
+    if (!user || !profile || profile.role !== "admin") {
         return null;
     }
 

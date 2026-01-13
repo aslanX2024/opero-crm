@@ -148,7 +148,7 @@ export default function RegisterPage() {
                 </div>
                 <CardTitle className="text-2xl font-bold">Kayıt Ol</CardTitle>
                 <CardDescription>
-                    Yeni bir Emlak CRM hesabı oluşturun
+                    Yeni bir OPERO hesabı oluşturun
                 </CardDescription>
             </CardHeader>
 

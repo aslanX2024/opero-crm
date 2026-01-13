@@ -16,8 +16,8 @@ const footerLinks = {
     ],
     destek: [
         { label: "Yardım Merkezi", href: "/yardim" },
-        { label: "API Dokümantasyon", href: "/api" },
-        { label: "Durum", href: "/status" },
+        { label: "API Dokümantasyon", href: "/api-docs" },
+        { label: "Sistem Durumu", href: "/status" },
     ],
     yasal: [
         { label: "Gizlilik Politikası", href: "/gizlilik" },

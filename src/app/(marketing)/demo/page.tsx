@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Metadata } from "next";
 import Link from "next/link";
-import { Check, Calendar, Phone, Mail, Building2 } from "lucide-react";
+import { Check, Calendar, Phone, Mail, Copy, ExternalLink, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { createDemoToken, getDemoUrl, DEMO_TOKEN_EXPIRY_HOURS } from "@/lib/demo-tokens";
 
 export default function DemoPage() {
     const [formData, setFormData] = useState({
@@ -27,16 +27,44 @@ export default function DemoPage() {
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [demoLink, setDemoLink] = useState("");
+    const [copied, setCopied] = useState(false);
+    const [error, setError] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError("");
 
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        // Token oluştur
+        const result = await createDemoToken({
+            email: formData.email,
+            full_name: formData.fullName,
+            company: formData.company,
+            phone: formData.phone,
+        });
 
+        if ("error" in result) {
+            setError(result.error);
+            setLoading(false);
+            return;
+        }
+
+        // Demo linkini oluştur
+        const link = getDemoUrl(result.token);
+        setDemoLink(link);
         setSuccess(true);
         setLoading(false);
+    };
+
+    const copyToClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(demoLink);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error("Kopyalama hatası:", err);
+        }
     };
 
     if (success) {
@@ -47,11 +75,46 @@ export default function DemoPage() {
                         <Check className="w-10 h-10 text-green-600" />
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                        Talebiniz Alındı!
+                        Demo Linkiniz Hazır!
                     </h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
-                        Ekibimiz en kısa sürede sizinle iletişime geçecek. Genellikle 24 saat içinde dönüş yapıyoruz.
+                    <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
+                        Aşağıdaki link ile OPERO CRM&apos;i deneyimleyebilirsiniz.
                     </p>
+
+                    {/* Demo Link Box */}
+                    <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 mb-4">
+                        <div className="flex items-center gap-2 justify-center mb-3">
+                            <Clock className="w-4 h-4 text-orange-500" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                                Bu link {DEMO_TOKEN_EXPIRY_HOURS} saat geçerlidir
+                            </span>
+                        </div>
+                        <div className="bg-white dark:bg-gray-900 rounded-lg p-3 mb-3 break-all text-sm text-gray-700 dark:text-gray-300 font-mono">
+                            {demoLink}
+                        </div>
+                        <div className="flex gap-3 justify-center">
+                            <Button
+                                onClick={copyToClipboard}
+                                variant="outline"
+                                className="flex items-center gap-2"
+                            >
+                                <Copy className="w-4 h-4" />
+                                {copied ? "Kopyalandı!" : "Linki Kopyala"}
+                            </Button>
+                            <Button
+                                onClick={() => window.open(demoLink, "_blank")}
+                                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                Demo&apos;yu Aç
+                            </Button>
+                        </div>
+                    </div>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
+                        Ayrıca ekibimiz sizinle iletişime geçerek canlı demo sunumu yapacaktır.
+                    </p>
+
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
                             href="/"
@@ -252,11 +315,11 @@ export default function DemoPage() {
                                 </h3>
                                 <div className="space-y-4">
                                     <a
-                                        href="tel:+902121234567"
+                                        href="tel:+903128700800"
                                         className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-600"
                                     >
                                         <Phone className="w-5 h-5" />
-                                        +90 212 123 45 67
+                                        0 312 870 0 800
                                     </a>
                                     <a
                                         href="mailto:demo@opero.tr"
