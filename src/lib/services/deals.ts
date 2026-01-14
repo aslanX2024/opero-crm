@@ -199,3 +199,55 @@ export async function getDealStats(userId: string) {
         weightedValue: deals.reduce((sum, d) => sum + ((d.expected_value || 0) * (d.probability / 100)), 0),
     };
 }
+
+// Pipeline özeti için aşamalara göre gruplandırılmış fırsatlar
+export interface PipelineStageCount {
+    name: string;
+    stage: DealStage;
+    count: number;
+    color: string;
+}
+
+const stageLabels: Record<DealStage, { name: string; color: string }> = {
+    yeni_lead: { name: "Yeni Lead", color: "#60a5fa" },
+    iletisim_kuruldu: { name: "İletişim", color: "#34d399" },
+    kalifikasyon: { name: "Kalifikasyon", color: "#a78bfa" },
+    gosterim_planlandi: { name: "Gösterim Planlandı", color: "#fbbf24" },
+    gosterim_yapildi: { name: "Gösterim Yapıldı", color: "#fb923c" },
+    teklif: { name: "Teklif", color: "#f97316" },
+    muzakere: { name: "Müzakere", color: "#ef4444" },
+    sozlesme: { name: "Sözleşme", color: "#8b5cf6" },
+    kapanis: { name: "Kapanış", color: "#a855f7" },
+    tamamlandi: { name: "Tamamlandı", color: "#22c55e" },
+};
+
+export async function getDealsByStage(userId: string): Promise<PipelineStageCount[]> {
+    const { data, error } = await supabase
+        .from("deals")
+        .select("stage")
+        .eq("assigned_to", userId);
+
+    if (error) {
+        console.error("Error fetching deals by stage:", error);
+        return [];
+    }
+
+    const deals = data || [];
+    const stageCounts: Record<string, number> = {};
+
+    deals.forEach((deal) => {
+        stageCounts[deal.stage] = (stageCounts[deal.stage] || 0) + 1;
+    });
+
+    // Sadece aktif aşamaları döndür (tamamlandi hariç)
+    const activeStages: DealStage[] = ["yeni_lead", "iletisim_kuruldu", "gosterim_planlandi", "gosterim_yapildi", "teklif", "muzakere", "sozlesme", "kapanis"];
+
+    return activeStages
+        .filter((stage) => stageCounts[stage] > 0)
+        .map((stage) => ({
+            name: stageLabels[stage].name,
+            stage,
+            count: stageCounts[stage],
+            color: stageLabels[stage].color,
+        }));
+}
