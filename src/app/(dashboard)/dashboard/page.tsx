@@ -98,9 +98,12 @@ function formatTimeAgo(timestamp: string): string {
     return `${diffDays} gün önce`;
 }
 
+import { useOnboarding } from "@/hooks/use-onboarding";
+
 // Dashboard ana sayfası
 export default function DashboardPage() {
     const { profile } = useAuth();
+    const { checkAndStartTour } = useOnboarding();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [pipelineData, setPipelineData] = useState<PipelineStageCount[]>([]);
     const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -139,6 +142,13 @@ export default function DashboardPage() {
         loadDashboardData();
     }, [profile?.id]);
 
+    // Onboarding başlat
+    useEffect(() => {
+        if (!loading) {
+            checkAndStartTour("dashboard");
+        }
+    }, [loading, checkAndStartTour]);
+
     // Loading durumu
     if (loading) {
         return (
@@ -169,7 +179,7 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6">
             {/* Hoşgeldin mesajı */}
-            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div id="dashboard-header" className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute left-1/2 bottom-0 w-32 h-32 bg-white/10 rounded-full translate-y-1/2" />
                 <div className="relative z-10">
@@ -183,7 +193,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Özet Kartları */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="stats-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Aktif Portföy */}
                 <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
                     <CardContent className="p-6">
@@ -273,10 +283,12 @@ export default function DashboardPage() {
             {/* Orta Kısım: Görevler ve Pipeline */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Günlük Görevler - Streak Sistemi ile */}
-                <DailyTasksCard compact />
+                <div id="quick-actions">
+                    <DailyTasksCard compact />
+                </div>
 
                 {/* Pipeline Özeti */}
-                <Card>
+                <Card id="pipeline-summary">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <TrendingUp className="w-5 h-5 text-blue-500" />
@@ -338,7 +350,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Son Aktiviteler */}
-            <Card>
+            <Card id="recent-activity">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Clock className="w-5 h-5 text-gray-500" />

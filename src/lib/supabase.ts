@@ -4,11 +4,27 @@ import { createBrowserClient } from '@supabase/ssr';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Konfigürasyon kontrolü
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!isSupabaseConfigured && typeof window !== 'undefined') {
+    console.warn(
+        '⚠️ Supabase yapılandırılmamış!\n' +
+        'NEXT_PUBLIC_SUPABASE_URL ve NEXT_PUBLIC_SUPABASE_ANON_KEY env değişkenlerini kontrol edin.\n' +
+        'Demo modu aktif olacak.'
+    );
+}
+
 // Supabase Browser Client - cookie tabanlı session yönetimi
+// Not: Boş string geçilirse Supabase client hata fırlatır, bu yüzden dummy değer kullanıyoruz
+// Ancak isSupabaseConfigured flag'i ile gerçek kullanım kontrol edilebilir
 export const supabase = createBrowserClient(
     supabaseUrl || 'https://placeholder.supabase.co',
-    supabaseAnonKey || 'placeholder-key'
+    supabaseAnonKey || 'placeholder-anon-key'
 );
+
+// Supabase'in yapılandırılıp yapılandırılmadığını kontrol etmek için export
+export { isSupabaseConfigured };
 
 // Tip tanımları - veritabanı şeması
 export type UserRole = 'danisman' | 'broker' | 'admin';

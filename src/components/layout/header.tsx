@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { CommandMenu } from "@/components/command-menu";
+import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 import {
     Search,
     Bell,
@@ -57,8 +60,8 @@ function calculateLevel(xp: number): { level: number; title: string } {
 export function Header() {
     const router = useRouter();
     const { profile, signOut } = useAuth();
-    const { theme, setTheme, sidebarCollapsed, unreadNotifications, setSidebarOpen } = useAppStore();
-    const [searchQuery, setSearchQuery] = useState("");
+    const { sidebarCollapsed, setSidebarOpen } = useAppStore();
+    const { theme, setTheme } = useTheme();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     // Seviye bilgisi
@@ -72,21 +75,7 @@ export function Header() {
 
     // Tema değiştir
     const toggleTheme = () => {
-        if (theme === "dark") {
-            setTheme("light");
-            document.documentElement.classList.remove("dark");
-        } else {
-            setTheme("dark");
-            document.documentElement.classList.add("dark");
-        }
-    };
-
-    // Arama
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (searchQuery.trim()) {
-            router.push(`/dashboard/search?q=${encodeURIComponent(searchQuery)}`);
-        }
+        setTheme(theme === "dark" ? "light" : "dark");
     };
 
     return (
@@ -121,19 +110,10 @@ export function Header() {
                         </SheetContent>
                     </Sheet>
 
-                    {/* Arama çubuğu */}
-                    <form onSubmit={handleSearch} className="hidden sm:block">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                type="search"
-                                placeholder="Müşteri, emlak veya adres ara..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-64 lg:w-80 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                            />
-                        </div>
-                    </form>
+                    {/* Arama çubuğu - Command Palette */}
+                    <div className="hidden sm:block w-full max-w-sm">
+                        <CommandMenu />
+                    </div>
                 </div>
 
                 {/* Sağ taraf: Aksiyonlar */}
@@ -178,14 +158,7 @@ export function Header() {
                     </Button>
 
                     {/* Bildirimler */}
-                    <Button variant="ghost" size="icon" className="relative">
-                        <Bell className="w-5 h-5" />
-                        {unreadNotifications > 0 && (
-                            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                                {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                            </Badge>
-                        )}
-                    </Button>
+                    <NotificationDropdown />
 
                     {/* Profil dropdown */}
                     <DropdownMenu>

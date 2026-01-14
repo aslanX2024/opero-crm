@@ -29,12 +29,15 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
+import { useEmail } from "@/hooks/use-email";
+import { Checkbox } from "@/components/ui/checkbox";
+
 // Demo müşteriler
 const DEMO_CUSTOMERS = [
-    { id: "1", name: "Ahmet Yılmaz", phone: "+90 532 111 2233" },
-    { id: "2", name: "Ayşe Demir", phone: "+90 533 444 5566" },
-    { id: "3", name: "Mehmet Kaya", phone: "+90 534 777 8899" },
-    { id: "4", name: "Fatma Şahin", phone: "+90 535 000 1122" },
+    { id: "1", name: "Ahmet Yılmaz", phone: "+90 532 111 2233", email: "ahmet.yilmaz@ornek.com" },
+    { id: "2", name: "Ayşe Demir", phone: "+90 533 444 5566", email: "ayse.demir@ornek.com" },
+    { id: "3", name: "Mehmet Kaya", phone: "+90 534 777 8899", email: "mehmet.kaya@ornek.com" },
+    { id: "4", name: "Fatma Şahin", phone: "+90 535 000 1122", email: "fatma.sahin@ornek.com" },
 ];
 
 // Demo mülkler
@@ -67,7 +70,10 @@ export default function NewAppointmentPage() {
         duration: "60",
         location: "",
         notes: "",
+        sendEmail: true,
     });
+
+    const { sendAppointmentConfirmation } = useEmail();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,6 +87,25 @@ export default function NewAppointmentPage() {
 
         // Simüle kayıt
         await new Promise((r) => setTimeout(r, 1000));
+
+        // Email gönderimi
+        if (form.sendEmail) {
+            const customer = DEMO_CUSTOMERS.find(c => c.id === form.customerId);
+            const property = DEMO_PROPERTIES.find(p => p.id === form.propertyId);
+            const type = APPOINTMENT_TYPES.find(t => t.value === form.type);
+
+            if (customer && customer.email) {
+                await sendAppointmentConfirmation(customer.email, {
+                    title: type?.label || "Randevu",
+                    date: form.date,
+                    time: form.time,
+                    duration: form.duration,
+                    location: form.location,
+                    customerName: customer.name,
+                    propertyTitle: property?.title,
+                });
+            }
+        }
 
         alert("Randevu oluşturuldu! +15 XP kazandınız! 🎉");
         router.push("/dashboard/appointments");
@@ -123,8 +148,8 @@ export default function NewAppointmentPage() {
                                         <div
                                             key={type.value}
                                             className={`p-3 border rounded-lg cursor-pointer text-center transition-all ${form.type === type.value
-                                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                                    : "hover:border-gray-400"
+                                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                                                : "hover:border-gray-400"
                                                 }`}
                                             onClick={() => setForm({ ...form, type: type.value })}
                                         >
@@ -253,6 +278,18 @@ export default function NewAppointmentPage() {
                                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                                 rows={3}
                             />
+                        </div>
+
+                        {/* Email Bildirimi */}
+                        <div className="flex items-center space-x-2 border p-3 rounded-lg bg-gray-50 dark:bg-gray-900/10">
+                            <Checkbox
+                                id="sendEmail"
+                                checked={form.sendEmail}
+                                onCheckedChange={(checked) => setForm({ ...form, sendEmail: checked as boolean })}
+                            />
+                            <Label htmlFor="sendEmail" className="cursor-pointer font-normal text-sm">
+                                Müşteriye randevu detaylarını içeren <strong>bilgilendirme e-postası</strong> gönder
+                            </Label>
                         </div>
 
                         {/* Butonlar */}

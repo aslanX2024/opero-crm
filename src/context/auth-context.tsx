@@ -10,12 +10,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { Session, User } from "@supabase/supabase-js";
-import { supabase, UserProfile, getAuthErrorMessage } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured, UserProfile, getAuthErrorMessage } from "@/lib/supabase";
 
-// Geliştirme modu kontrolü - Supabase yapılandırılmamışsa true
-const isDevelopmentMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL === '' ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+// Geliştirme modu kontrolü - sadece development ortamında VE Supabase yapılandırılmamışsa
+const isDevelopmentMode =
+    process.env.NODE_ENV === 'development' && !isSupabaseConfigured;
 
 // Demo kullanıcı profili
 const DEMO_PROFILE: UserProfile = {
@@ -77,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
-    
+
     // Sonsuz döngüyü önlemek için ref kullan
     const isInitialized = useRef(false);
     const isFetchingProfile = useRef(false);
@@ -171,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const userProfile = await fetchProfile(newSession.user.id);
                     if (userProfile) {
                         setProfile(userProfile);
-                        
+
                         // Sadece SIGNED_IN event'inde yönlendir
                         if (event === "SIGNED_IN") {
                             // Rol bazlı yönlendirme

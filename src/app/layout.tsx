@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
+import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme-provider";
 
 // Inter fontu - modern ve okunabilir
 const inter = Inter({ subsets: ["latin"] });
@@ -63,7 +65,17 @@ export default function RootLayout({
             </head>
             <body className={inter.className}>
                 {/* Providers: React Query, Auth Context vb. */}
-                <Providers>{children}</Providers>
+                <Providers>
+                    <ThemeProvider
+                        attribute="class"
+                        defaultTheme="system"
+                        enableSystem
+                        disableTransitionOnChange
+                    >
+                        {children}
+                        <Toaster />
+                    </ThemeProvider>
+                </Providers>
             </body>
         </html>
     );

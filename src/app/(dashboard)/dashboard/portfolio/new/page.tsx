@@ -39,6 +39,9 @@ import {
     HEATING_TYPES,
     CITIES,
 } from "@/types/property";
+import DynamicLocationPicker from "@/components/location/dynamic-location-picker";
+import { ImageUploader } from "@/components/ui/image-uploader";
+import { UploadedImage } from "@/lib/services/storage";
 
 // Form adımları
 const STEPS = [
@@ -99,7 +102,7 @@ export default function NewPropertyPage() {
         is_exchange_eligible: false,
 
         // Adım 4 - Görseller
-        images: [] as string[],
+        images: [] as UploadedImage[],
         main_image_index: 0,
         video_url: "",
 
@@ -400,35 +403,16 @@ export default function NewPropertyPage() {
                                 />
                             </div>
 
-                            {/* Harita placeholder */}
-                            <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                                <div className="text-center text-gray-500">
-                                    <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                    <p>Harita üzerinde konum seçin</p>
-                                    <p className="text-sm">veya koordinatları manuel girin</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="latitude">Enlem (Latitude)</Label>
-                                    <Input
-                                        id="latitude"
-                                        placeholder="40.9876"
-                                        value={formData.latitude}
-                                        onChange={(e) => handleChange("latitude", e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="longitude">Boylam (Longitude)</Label>
-                                    <Input
-                                        id="longitude"
-                                        placeholder="29.0283"
-                                        value={formData.longitude}
-                                        onChange={(e) => handleChange("longitude", e.target.value)}
-                                    />
-                                </div>
-                            </div>
+                            {/* Harita Konum Seçici */}
+                            <DynamicLocationPicker
+                                latitude={formData.latitude ? parseFloat(formData.latitude) : null}
+                                longitude={formData.longitude ? parseFloat(formData.longitude) : null}
+                                onChange={(lat, lng) => {
+                                    handleChange("latitude", lat.toString());
+                                    handleChange("longitude", lng.toString());
+                                }}
+                                height="280px"
+                            />
                         </div>
                     )}
 
@@ -559,46 +543,14 @@ export default function NewPropertyPage() {
                     {/* Adım 4: Görseller */}
                     {currentStep === 4 && (
                         <div className="space-y-6">
-                            {/* Fotoğraf yükleme alanı */}
-                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
-                                <Image className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                                <p className="text-lg font-medium mb-2">Fotoğrafları sürükleyip bırakın</p>
-                                <p className="text-sm text-gray-500 mb-4">veya</p>
-                                <Button variant="outline">
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Dosya Seç
-                                </Button>
-                                <p className="text-xs text-gray-400 mt-4">
-                                    PNG, JPG, WEBP • Maksimum 10MB • En fazla 20 fotoğraf
-                                </p>
-                            </div>
-
-                            {/* Yüklenen fotoğraflar (demo) */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {[1, 2, 3].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="relative aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg group cursor-move"
-                                    >
-                                        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                                            <Image className="w-8 h-8" />
-                                        </div>
-                                        <div className="absolute top-2 left-2">
-                                            <GripVertical className="w-4 h-4 text-gray-400" />
-                                        </div>
-                                        {i === 1 && (
-                                            <div className="absolute top-2 right-2">
-                                                <Badge className="bg-blue-600 text-xs">Ana</Badge>
-                                            </div>
-                                        )}
-                                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button size="icon" variant="destructive" className="h-7 w-7">
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            {/* Fotoğraf yükleme */}
+                            <ImageUploader
+                                images={formData.images}
+                                onChange={(images) => handleChange("images", images)}
+                                mainImageIndex={formData.main_image_index}
+                                onMainImageChange={(index) => handleChange("main_image_index", index)}
+                                maxImages={20}
+                            />
 
                             {/* Video URL */}
                             <div className="space-y-2">

@@ -25,6 +25,7 @@ import {
     Store,
     Castle,
     Loader2,
+    FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,9 @@ import {
     formatPrice,
     formatPriceShort,
 } from "@/types/property";
+import DynamicMap from "@/components/location/dynamic-map";
+import { generatePortfolioReport } from "@/lib/reports/property-report";
+import { useOnboarding } from "@/hooks/use-onboarding";
 
 // Mülk tipi ikonu
 function getPropertyIcon(type: string) {
@@ -92,7 +96,9 @@ export default function PortfolioPage() {
     const [view, setView] = useState<"grid" | "list" | "map">("grid");
     const [filterOpen, setFilterOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [sortBy, setSortBy] = useState("newest");
+    const [sortBy, setSortBy] = useState<string>("featured");
+
+    const { checkAndStartTour } = useOnboarding();
 
     // Filtreler
     const [filters, setFilters] = useState({
@@ -106,7 +112,7 @@ export default function PortfolioPage() {
 
     // Veritabanından mülkleri çek
     useEffect(() => {
-        async function fetchProperties() {
+        async function loadProperties() {
             if (!user?.id) return;
 
             setLoading(true);
@@ -120,8 +126,15 @@ export default function PortfolioPage() {
             }
         }
 
-        fetchProperties();
+        loadProperties();
     }, [user?.id]);
+
+    // Onboarding başlat
+    useEffect(() => {
+        if (!loading && properties.length > 0) {
+            checkAndStartTour("portfolio");
+        }
+    }, [loading, properties.length, checkAndStartTour]);
 
     // Filtrelenmiş mülkler
     const filteredProperties = useMemo(() => {
@@ -223,19 +236,30 @@ export default function PortfolioPage() {
     return (
         <div className="space-y-6">
             {/* Başlık ve Aksiyonlar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div id="portfolio-header" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Portföy</h1>
                     <p className="text-gray-500 dark:text-gray-400">
                         {filteredProperties.length} mülk listeleniyor
                     </p>
                 </div>
-                <Link href="/dashboard/portfolio/new">
-                    <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Yeni Mülk Ekle
+                <div className="flex gap-2">
+                    <Button
+                        id="export-btn"
+                        variant="outline"
+                        onClick={() => generatePortfolioReport(filteredProperties)}
+                        disabled={filteredProperties.length === 0}
+                    >
+                        <FileDown className="w-4 h-4 mr-2" />
+                        PDF Rapor
                     </Button>
-                </Link>
+                    <Link href="/dashboard/portfolio/new">
+                        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Yeni Mülk Ekle
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Arama ve Görünüm */}
@@ -264,20 +288,22 @@ export default function PortfolioPage() {
                     </SelectContent>
                 </Select>
 
-                {/* Görünüm Değiştirici */}
-                <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
-                    <TabsList>
-                        <TabsTrigger value="grid" className="px-3">
-                            <LayoutGrid className="w-4 h-4" />
-                        </TabsTrigger>
-                        <TabsTrigger value="list" className="px-3">
-                            <List className="w-4 h-4" />
-                        </TabsTrigger>
-                        <TabsTrigger value="map" className="px-3">
-                            <Map className="w-4 h-4" />
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                {/* Görünüm ve Sıralama */}
+                <div id="view-toggles" className="flex items-center gap-2">
+                    <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
+                        <TabsList>
+                            <TabsTrigger value="grid" className="p-2">
+                                <LayoutGrid className="w-4 h-4" />
+                            </TabsTrigger>
+                            <TabsTrigger value="list" className="p-2">
+                                <List className="w-4 h-4" />
+                            </TabsTrigger>
+                            <TabsTrigger value="map" className="p-2">
+                                <Map className="w-4 h-4" />
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
 
                 {/* Filtre Butonu */}
                 <Button
@@ -531,13 +557,10 @@ export default function PortfolioPage() {
 
             {/* Harita Görünümü */}
             {view === "map" && (
-                <Card className="h-[600px] flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                        <Map className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-medium">Harita Görünümü</p>
-                        <p className="text-sm">Leaflet entegrasyonu için konfigürasyon gerekli</p>
-                    </div>
-                </Card>
+                <DynamicMap
+                    properties={filteredProperties}
+                    height="600px"
+                />
             )}
 
             {/* Boş durum */}

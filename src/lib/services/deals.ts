@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { STAGE_ORDER, type PipelineStage } from "@/types/pipeline";
 
 // Types
 export type DealStage =
@@ -189,7 +190,8 @@ export async function getDealStats(userId: string) {
     }
 
     const deals = data || [];
-    const activeStages: DealStage[] = ["yeni_lead", "iletisim_kuruldu", "kalifikasyon", "gosterim_planlandi", "gosterim_yapildi", "teklif", "muzakere", "sozlesme", "kapanis"];
+    // Aktif aşamalar: tamamlandi hariç tüm aşamalar (merkezi STAGE_ORDER kullanılıyor)
+    const activeStages = STAGE_ORDER.filter(s => s !== "tamamlandi");
 
     return {
         total: deals.length,
@@ -239,8 +241,8 @@ export async function getDealsByStage(userId: string): Promise<PipelineStageCoun
         stageCounts[deal.stage] = (stageCounts[deal.stage] || 0) + 1;
     });
 
-    // Sadece aktif aşamaları döndür (tamamlandi hariç)
-    const activeStages: DealStage[] = ["yeni_lead", "iletisim_kuruldu", "gosterim_planlandi", "gosterim_yapildi", "teklif", "muzakere", "sozlesme", "kapanis"];
+    // Aktif aşamalar: tamamlandi hariç (merkezi STAGE_ORDER kullanılıyor)
+    const activeStages = STAGE_ORDER.filter(s => s !== "tamamlandi");
 
     return activeStages
         .filter((stage) => stageCounts[stage] > 0)
