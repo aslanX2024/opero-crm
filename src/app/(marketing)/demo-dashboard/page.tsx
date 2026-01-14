@@ -1,27 +1,21 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
     Home,
     Building2,
     Users,
-    Calendar,
-    DollarSign,
     TrendingUp,
     ArrowRight,
     Star,
     Clock,
     CheckCircle,
     Circle,
-    AlertCircle,
     Sparkles,
-    LayoutGrid,
-    Phone,
     Target,
     ChevronRight,
-    XCircle,
+    Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +31,6 @@ import {
     DEMO_STATS,
     DEMO_TASKS,
 } from "@/lib/demo-mode";
-import { validateDemoToken, markTokenAsUsed } from "@/lib/demo-tokens";
 
 // Pipeline aşama renkleri
 const stageColors: Record<string, string> = {
@@ -70,37 +63,7 @@ const formatCurrency = (value: number) => {
 };
 
 export default function DemoDashboardPage() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
     const [tasks, setTasks] = useState(DEMO_TASKS);
-    const [tokenStatus, setTokenStatus] = useState<"loading" | "valid" | "invalid" | "expired">("loading");
-
-    // Token doğrulama
-    useEffect(() => {
-        const token = searchParams.get("token");
-
-        if (!token) {
-            // Token yoksa demo talep sayfasına yönlendir
-            router.push("/demo");
-            return;
-        }
-
-        const checkToken = async () => {
-            const result = await validateDemoToken(token);
-
-            if (result.valid) {
-                setTokenStatus("valid");
-                // Token'ı kullanıldı olarak işaretle
-                await markTokenAsUsed(token);
-            } else if (result.expired) {
-                setTokenStatus("expired");
-            } else {
-                setTokenStatus("invalid");
-            }
-        };
-
-        checkToken();
-    }, [searchParams, router]);
 
     // Task toggle
     const toggleTask = (taskId: string) => {
@@ -119,53 +82,6 @@ export default function DemoDashboardPage() {
         });
         return groups;
     }, []);
-
-    // Loading state
-    if (tokenStatus === "loading") {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400">Demo yükleniyor...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Invalid or expired token
-    if (tokenStatus === "invalid" || tokenStatus === "expired") {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-                <div className="max-w-md text-center">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                        <XCircle className="w-10 h-10 text-red-600" />
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                        {tokenStatus === "expired" ? "Demo Süresi Dolmuş" : "Geçersiz Demo Linki"}
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-400 mb-8">
-                        {tokenStatus === "expired"
-                            ? "Bu demo linkinin süresi dolmuş. Yeni bir demo talep edebilirsiniz."
-                            : "Bu demo linki geçerli değil. Lütfen yeni bir demo talep edin."}
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link
-                            href="/demo"
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium"
-                        >
-                            Yeni Demo Talep Et
-                        </Link>
-                        <Link
-                            href="/"
-                            className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-medium"
-                        >
-                            Ana Sayfaya Dön
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
