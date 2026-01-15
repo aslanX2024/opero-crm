@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth, SignUpData } from "@/context/auth-context";
@@ -24,8 +24,21 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-// Kayıt sayfası
+// Suspense wrapper for the page
 export default function RegisterPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+        }>
+            <RegisterForm />
+        </Suspense>
+    );
+}
+
+// Kayıt formu
+function RegisterForm() {
     const { signUp } = useAuth();
     const searchParams = useSearchParams();
     const brokerEmail = searchParams.get("broker");
