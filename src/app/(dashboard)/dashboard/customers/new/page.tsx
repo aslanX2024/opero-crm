@@ -43,6 +43,8 @@ import {
 import { PROPERTY_TYPES, ROOM_COUNTS } from "@/types/property";
 import { LocationSelector } from "@/components/location/location-selector";
 import { SelectedLocation } from "@/types/location";
+import { createCustomer } from "@/lib/services/customers";
+import { useAuth } from "@/context/auth-context";
 
 
 
@@ -133,8 +135,10 @@ function formatPhoneNumber(value: string): string {
 // Yeni müşteri ekleme sayfası
 export default function NewCustomerPage() {
     const router = useRouter();
+    const { user } = useAuth();
     const [saving, setSaving] = useState(false);
     const [phoneError, setPhoneError] = useState("");
+    const [error, setError] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -198,21 +202,50 @@ export default function NewCustomerPage() {
     // Kaydet
     const handleSave = async () => {
         // Validasyon
+        if (!user?.id) {
+            setError("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+            return;
+        }
         if (!formData.fullName.trim()) {
-            alert("Ad Soyad zorunludur");
+            setError("Ad Soyad zorunludur.");
             return;
         }
         if (!formData.phone || formData.phone.replace(/\D/g, "").length < 10) {
-            alert("Geçerli bir telefon numarası giriniz");
+            setError("Geçerli bir telefon numarası giriniz.");
             return;
         }
 
         setSaving(true);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setSaving(false);
+        setError(null);
 
-        alert(`Müşteri başarıyla eklendi! Lead Skoru: ${leadScore}\n+30 XP kazandınız 🎉`);
-        router.push("/dashboard/customers");
+        try {
+            // Bölgeleri string array olarak hazırla
+            const preferredRegions = formData.selectedLocations.map(loc =>
+                `${loc.cityName}${loc.districtName ? ` / ${loc.districtName}` : ""}${loc.neighborhoodName ? ` / ${loc.neighborhoodName}` : ""}`
+            );
+
+            await createCustomer(user.id, {
+                full_name: formData.fullName.trim(),
+                phone: formData.phone.replace(/\D/g, ""),
+                email: formData.email || undefined,
+                customer_type: formData.customerType,
+                lead_source: formData.leadSource === "other" ? formData.otherSource : formData.leadSource || undefined,
+                preferred_regions: preferredRegions,
+                budget_min: formData.budgetMin || undefined,
+                budget_max: formData.budgetMax || undefined,
+                preferred_property_types: formData.selectedPropertyTypes,
+                preferred_room_counts: formData.selectedRoomCounts,
+                notes: formData.notes || undefined,
+            });
+
+            // Başarılı - yönlendir
+            router.push("/dashboard/customers");
+        } catch (err: any) {
+            console.error("Error creating customer:", err);
+            setError(err?.message || "Müşteri eklenirken bir hata oluştu.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     // Alıcı/Kiracı mı?

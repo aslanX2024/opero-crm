@@ -42,6 +42,8 @@ import {
 import DynamicLocationPicker from "@/components/location/dynamic-location-picker";
 import { ImageUploader } from "@/components/ui/image-uploader";
 import { UploadedImage } from "@/lib/services/storage";
+import { createProperty } from "@/lib/services/properties";
+import { useAuth } from "@/context/auth-context";
 
 // Form adımları
 const STEPS = [
@@ -64,8 +66,10 @@ const DISTRICTS: Record<string, string[]> = {
 // Yeni mülk ekleme sayfası
 export default function NewPropertyPage() {
     const router = useRouter();
+    const { user } = useAuth();
     const [currentStep, setCurrentStep] = useState(1);
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -139,14 +143,71 @@ export default function NewPropertyPage() {
 
     // Kaydet
     const handleSave = async (isDraft: boolean = false) => {
-        setSaving(true);
-        // Simüle kaydetme
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setSaving(false);
+        if (!user?.id) {
+            setError("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+            return;
+        }
 
-        // XP animasyonu ve yönlendirme
-        alert(isDraft ? "Taslak kaydedildi!" : "Mülk başarıyla eklendi! +50 XP kazandınız 🎉");
-        router.push("/dashboard/portfolio");
+        // Validasyon
+        if (!formData.title.trim()) {
+            setError("Mülk başlığı zorunludur.");
+            return;
+        }
+        if (!formData.city || !formData.district) {
+            setError("Şehir ve ilçe seçimi zorunludur.");
+            return;
+        }
+        if (!formData.price) {
+            setError("Fiyat zorunludur.");
+            return;
+        }
+
+        setSaving(true);
+        setError(null);
+
+        try {
+            await createProperty(user.id, {
+                title: formData.title,
+                listing_type: formData.listing_type,
+                property_type: formData.property_type as any,
+                price: parseFloat(formData.price) || 0,
+                currency: formData.currency as any,
+                commission_rate: parseFloat(formData.commission_rate) || 2,
+                city: formData.city,
+                district: formData.district,
+                neighborhood: formData.neighborhood || undefined,
+                address: formData.address || undefined,
+                gross_area: formData.gross_area ? parseFloat(formData.gross_area) : undefined,
+                net_area: formData.net_area ? parseFloat(formData.net_area) : undefined,
+                room_count: formData.room_count || undefined,
+                floor: formData.floor ? parseInt(formData.floor) : undefined,
+                total_floors: formData.total_floors ? parseInt(formData.total_floors) : undefined,
+                building_age: formData.building_age ? parseInt(formData.building_age) : undefined,
+                heating_type: formData.heating_type || undefined,
+                has_elevator: formData.has_elevator,
+                has_parking: formData.has_parking,
+                has_balcony: formData.has_balcony,
+                is_in_complex: formData.is_in_complex,
+                is_furnished: formData.is_furnished,
+                is_credit_eligible: formData.is_credit_eligible,
+                is_exchange_eligible: formData.is_exchange_eligible,
+                images: formData.images.map(img => img.url),
+                owner_name: formData.owner_name || undefined,
+                owner_phone: formData.owner_phone || undefined,
+                authorization_start: formData.authorization_start || undefined,
+                authorization_end: formData.authorization_end || undefined,
+                owner_notes: formData.owner_notes || undefined,
+                description: formData.description || undefined,
+            });
+
+            // Başarılı - yönlendir
+            router.push("/dashboard/portfolio");
+        } catch (err: any) {
+            console.error("Error creating property:", err);
+            setError(err?.message || "Mülk eklenirken bir hata oluştu.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     // Mevcut ilçeler

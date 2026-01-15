@@ -70,8 +70,8 @@ export default function AppointmentsPage() {
     // Filtrelenmiş randevular
     const filteredAppointments = useMemo(() => {
         return appointments.filter((apt) => {
-            if (filterType && apt.type !== filterType) return false;
-            if (filterStatus && apt.status !== filterStatus) return false;
+            if (filterType && filterType !== "all" && apt.type !== filterType) return false;
+            if (filterStatus && filterStatus !== "all" && apt.status !== filterStatus) return false;
             return true;
         });
     }, [appointments, filterType, filterStatus]);
