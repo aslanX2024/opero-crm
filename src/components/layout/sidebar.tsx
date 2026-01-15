@@ -16,6 +16,7 @@ import {
     ChevronRight,
     Crown,
     Receipt,
+    ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -54,6 +55,11 @@ const baseNavigationItems = [
         title: "Randevular",
         href: "/dashboard/appointments",
         icon: Calendar,
+    },
+    {
+        title: "Görevler",
+        href: "/dashboard/tasks",
+        icon: ListTodo,
     },
     {
         title: "Pazarlama",

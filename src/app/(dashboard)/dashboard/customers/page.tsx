@@ -59,6 +59,7 @@ import {
     getDaysSinceContact,
     formatBudget,
 } from "@/types/customer";
+import { ErrorState } from "@/components/ui/error-state";
 
 // Durum rengi
 function getStatusColor(status: string) {
@@ -77,6 +78,8 @@ export default function CustomersPage() {
     const { user } = useAuth();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [loadingTimeout, setLoadingTimeout] = useState(false);
 
     // State
     const [activeTab, setActiveTab] = useState("all");
@@ -96,21 +99,31 @@ export default function CustomersPage() {
     });
 
     // Veritabanından müşterileri çek
-    useEffect(() => {
-        async function fetchCustomers() {
-            if (!user?.id) return;
+    const fetchCustomers = async () => {
+        if (!user?.id) return;
 
-            setLoading(true);
-            try {
-                const data = await getCustomers(user.id);
-                setCustomers(data);
-            } catch (error) {
-                console.error("Error fetching customers:", error);
-            } finally {
-                setLoading(false);
-            }
+        setLoading(true);
+        setError(null);
+        setLoadingTimeout(false);
+
+        // Timeout kontrolü
+        const timeoutId = setTimeout(() => {
+            setLoadingTimeout(true);
+        }, 15000);
+
+        try {
+            const data = await getCustomers(user.id);
+            setCustomers(data);
+        } catch (err) {
+            console.error("Error fetching customers:", err);
+            setError("Müşteriler yüklenirken bir hata oluştu.");
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
         }
+    };
 
+    useEffect(() => {
         fetchCustomers();
     }, [user?.id]);
 
@@ -205,11 +218,23 @@ export default function CustomersPage() {
         overdue: customers.filter((c) => c.last_contact_date && isContactOverdue(c.last_contact_date)).length,
     };
 
+    // Error state
+    if (error || loadingTimeout) {
+        return (
+            <ErrorState
+                title={loadingTimeout ? "Yükleme zaman aşımına uğradı" : "Bir hata oluştu"}
+                message={loadingTimeout ? "Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin." : error || "Veriler yüklenemedi."}
+                onRetry={fetchCustomers}
+            />
+        );
+    }
+
     // Loading state
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <p className="text-gray-500">Müşteriler yükleniyor...</p>
             </div>
         );
     }

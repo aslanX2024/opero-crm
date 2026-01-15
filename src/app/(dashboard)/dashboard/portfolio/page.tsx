@@ -61,6 +61,8 @@ import {
 import DynamicMap from "@/components/location/dynamic-map";
 import { generatePortfolioReport } from "@/lib/reports/property-report";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // Mülk tipi ikonu
 function getPropertyIcon(type: string) {
@@ -91,6 +93,8 @@ export default function PortfolioPage() {
     const { user } = useAuth();
     const [properties, setProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [loadingTimeout, setLoadingTimeout] = useState(false);
 
     // State
     const [view, setView] = useState<"grid" | "list" | "map">("grid");
@@ -111,21 +115,31 @@ export default function PortfolioPage() {
     });
 
     // Veritabanından mülkleri çek
-    useEffect(() => {
-        async function loadProperties() {
-            if (!user?.id) return;
+    const loadProperties = async () => {
+        if (!user?.id) return;
 
-            setLoading(true);
-            try {
-                const data = await getProperties(user.id);
-                setProperties(data);
-            } catch (error) {
-                console.error("Error fetching properties:", error);
-            } finally {
-                setLoading(false);
-            }
+        setLoading(true);
+        setError(null);
+        setLoadingTimeout(false);
+
+        // Timeout kontrolü
+        const timeoutId = setTimeout(() => {
+            setLoadingTimeout(true);
+        }, 15000);
+
+        try {
+            const data = await getProperties(user.id);
+            setProperties(data);
+        } catch (err) {
+            console.error("Error fetching properties:", err);
+            setError("Mülkler yüklenirken bir hata oluştu.");
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
         }
+    };
 
+    useEffect(() => {
         loadProperties();
     }, [user?.id]);
 
@@ -224,11 +238,23 @@ export default function PortfolioPage() {
         setSearchQuery("");
     };
 
+    // Error state
+    if (error || loadingTimeout) {
+        return (
+            <ErrorState
+                title={loadingTimeout ? "Yükleme zaman aşımına uğradı" : "Bir hata oluştu"}
+                message={loadingTimeout ? "Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin." : error || "Veriler yüklenemedi."}
+                onRetry={loadProperties}
+            />
+        );
+    }
+
     // Loading state
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <p className="text-gray-500">Mülkler yükleniyor...</p>
             </div>
         );
     }

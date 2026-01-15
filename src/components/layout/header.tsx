@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { CommandMenu } from "@/components/command-menu";
 import { NotificationDropdown } from "@/components/layout/notification-dropdown";
+import { PageHelp } from "@/components/ui/page-help";
 import {
     Search,
     Bell,
@@ -59,6 +60,7 @@ function calculateLevel(xp: number): { level: number; title: string } {
 // Header bileşeni
 export function Header() {
     const router = useRouter();
+    const pathname = usePathname();
     const { profile, signOut } = useAuth();
     const { sidebarCollapsed, setSidebarOpen } = useAppStore();
     const { theme, setTheme } = useTheme();
@@ -147,6 +149,9 @@ export function Header() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+
+                    {/* Sayfa Yardımı */}
+                    <PageHelp pageKey={pathname} />
 
                     {/* Dark mode toggle */}
                     <Button variant="ghost" size="icon" onClick={toggleTheme}>
