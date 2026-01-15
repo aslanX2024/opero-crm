@@ -8,16 +8,18 @@ import {
     Users,
     GitBranch,
     Calendar,
-    Eye,
     Megaphone,
     Wallet,
     Trophy,
     Settings,
     ChevronLeft,
     ChevronRight,
+    Crown,
+    Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
+import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import {
     Tooltip,
@@ -26,8 +28,8 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Navigasyon öğeleri
-const navigationItems = [
+// Temel navigasyon öğeleri
+const baseNavigationItems = [
     {
         title: "Dashboard",
         href: "/dashboard",
@@ -75,10 +77,35 @@ const navigationItems = [
     },
 ];
 
+// Broker özel menü öğeleri
+const brokerNavigationItems = [
+    {
+        title: "Broker Dashboard",
+        href: "/dashboard/broker",
+        icon: Crown,
+    },
+    {
+        title: "Danışmanlar",
+        href: "/dashboard/broker/consultants",
+        icon: Users,
+    },
+    {
+        title: "Ofis Finansı",
+        href: "/dashboard/broker/finance",
+        icon: Receipt,
+    },
+];
+
 // Sidebar bileşeni
 export function Sidebar() {
     const pathname = usePathname();
     const { sidebarCollapsed, toggleSidebarCollapsed } = useAppStore();
+    const { profile } = useAuth();
+
+    // Rol bazlı navigasyon öğelerini birleştir
+    const navigationItems = profile?.role === "broker"
+        ? [...brokerNavigationItems, ...baseNavigationItems]
+        : baseNavigationItems;
 
     return (
         <TooltipProvider delayDuration={0}>

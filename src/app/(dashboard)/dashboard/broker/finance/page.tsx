@@ -47,6 +47,20 @@ const EXPENSE_CATEGORIES = [
     { value: "other", label: "Diğer", icon: "📋", color: "bg-gray-100 text-gray-700 dark:bg-gray-800" },
 ];
 
+// Tekrarlama türleri
+const RECURRENCE_TYPES = [
+    { value: "none", label: "Tekrar Yok" },
+    { value: "monthly", label: "Aylık" },
+    { value: "quarterly", label: "3 Aylık" },
+    { value: "yearly", label: "Yıllık" },
+];
+
+// Durum türleri
+const STATUS_TYPES = [
+    { value: "pending", label: "Bekliyor", color: "bg-yellow-100 text-yellow-700" },
+    { value: "paid", label: "Ödendi", color: "bg-green-100 text-green-700" },
+];
+
 interface Expense {
     id: string;
     amount: number;
@@ -54,6 +68,9 @@ interface Expense {
     description?: string;
     expense_date: string;
     created_at: string;
+    is_recurring?: boolean;
+    recurrence_type?: string;
+    status?: string;
 }
 
 // Para formatla
@@ -80,6 +97,8 @@ export default function BrokerFinancePage() {
         category: "rent",
         description: "",
         expense_date: new Date().toISOString().split("T")[0],
+        recurrence_type: "none",
+        status: "pending",
     });
 
     // Giderleri yükle
@@ -124,6 +143,9 @@ export default function BrokerFinancePage() {
                 category: newExpense.category,
                 description: newExpense.description || null,
                 expense_date: newExpense.expense_date,
+                is_recurring: newExpense.recurrence_type !== "none",
+                recurrence_type: newExpense.recurrence_type,
+                status: newExpense.status,
             })
             .select()
             .single();
@@ -135,6 +157,8 @@ export default function BrokerFinancePage() {
                 category: "rent",
                 description: "",
                 expense_date: new Date().toISOString().split("T")[0],
+                recurrence_type: "none",
+                status: "pending",
             });
             setIsAddDialogOpen(false);
         }
@@ -263,6 +287,42 @@ export default function BrokerFinancePage() {
                                         onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
                                     />
                                 </div>
+                                <div>
+                                    <Label htmlFor="recurrence">Tekrar</Label>
+                                    <Select
+                                        value={newExpense.recurrence_type}
+                                        onValueChange={(v) => setNewExpense({ ...newExpense, recurrence_type: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {RECURRENCE_TYPES.map((type) => (
+                                                <SelectItem key={type.value} value={type.value}>
+                                                    {type.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label htmlFor="status">Durum</Label>
+                                    <Select
+                                        value={newExpense.status}
+                                        onValueChange={(v) => setNewExpense({ ...newExpense, status: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {STATUS_TYPES.map((type) => (
+                                                <SelectItem key={type.value} value={type.value}>
+                                                    {type.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 <Button className="w-full" onClick={handleAddExpense}>
                                     Gider Ekle
                                 </Button>
@@ -365,7 +425,14 @@ export default function BrokerFinancePage() {
                                                 <span className="text-lg">{cat.icon}</span>
                                             </div>
                                             <div>
-                                                <p className="font-medium">{cat.label}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-medium">{cat.label}</p>
+                                                    {expense.is_recurring && (
+                                                        <Badge variant="outline" className="text-xs">
+                                                            🔄 {RECURRENCE_TYPES.find(r => r.value === expense.recurrence_type)?.label || "Tekrarlı"}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                                 {expense.description && (
                                                     <p className="text-sm text-gray-500">{expense.description}</p>
                                                 )}
@@ -375,9 +442,17 @@ export default function BrokerFinancePage() {
                                             <p className="font-semibold text-red-600">
                                                 -{formatCurrency(expense.amount)}
                                             </p>
-                                            <p className="text-sm text-gray-500">
-                                                {new Date(expense.expense_date).toLocaleDateString("tr-TR")}
-                                            </p>
+                                            <div className="flex items-center gap-2 justify-end mt-1">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={expense.status === "paid" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}
+                                                >
+                                                    {expense.status === "paid" ? "Ödendi" : "Bekliyor"}
+                                                </Badge>
+                                                <span className="text-sm text-gray-500">
+                                                    {new Date(expense.expense_date).toLocaleDateString("tr-TR")}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 );
