@@ -22,7 +22,7 @@ export default function DashboardLayout({
     // Oturum kontrolü - giriş yapmamış kullanıcıyı login'e yönlendir
     useEffect(() => {
         if (!loading && !user) {
-            router.push("/login");
+            router.replace("/login");
         }
     }, [user, loading, router]);
 
@@ -41,8 +41,9 @@ export default function DashboardLayout({
         );
     }
 
-    // Oturum yoksa hiçbir şey gösterme (yönlendirme yapılıyor)
+    // Oturum yoksa login'e yönlendir ve hiçbir şey gösterme
     if (!user) {
+        router.replace("/login");
         return null;
     }
 
