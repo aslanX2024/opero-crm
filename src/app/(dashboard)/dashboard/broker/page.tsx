@@ -36,8 +36,10 @@ import {
     ALERT_TYPE_LABELS,
     AgentPerformance,
 } from "@/types/broker";
+import { useAuth } from "@/context/auth-context";
 
 export default function BrokerDashboard() {
+    const { user } = useAuth();
     const [agents] = useState(DEMO_AGENT_PERFORMANCES);
     const [metrics] = useState(DEMO_OFFICE_METRICS);
     const [alerts] = useState(DEMO_BROKER_ALERTS);
@@ -85,25 +87,30 @@ export default function BrokerDashboard() {
                         Ofis performansı ve danışman yönetimi
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/dashboard/broker/consultants">
+                            <Users className="w-4 h-4 mr-2" />
+                            Danışmanlar
+                        </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <Link href="/dashboard/broker/finance">
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            Finans
+                        </Link>
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={() => {
-                            const url = `${window.location.origin}/register?broker=info@ajanssiper.com`; // Gerçekte user.email olmalı, şimdilik hardcoded veya auth'dan al
+                            const brokerEmail = user?.email || "broker@opero.tr";
+                            const url = `${window.location.origin}/register?broker=${encodeURIComponent(brokerEmail)}`;
                             navigator.clipboard.writeText(url);
                             alert("Davet linki kopyalandı! Bu linki danışmanlarınızla paylaşın.");
                         }}
                     >
                         <Users className="w-4 h-4 mr-2" />
                         Danışman Davet Et
-                    </Button>
-                    <Button variant="outline">
-                        <Bell className="w-4 h-4 mr-2" />
-                        Duyuru Gönder
-                    </Button>
-                    <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                        <Target className="w-4 h-4 mr-2" />
-                        Hedef Belirle
                     </Button>
                 </div>
             </div>
