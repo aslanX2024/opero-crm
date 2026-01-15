@@ -86,9 +86,16 @@ export default function BrokerDashboard() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Toplantı Planla
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            const url = `${window.location.origin}/register?broker=info@ajanssiper.com`; // Gerçekte user.email olmalı, şimdilik hardcoded veya auth'dan al
+                            navigator.clipboard.writeText(url);
+                            alert("Davet linki kopyalandı! Bu linki danışmanlarınızla paylaşın.");
+                        }}
+                    >
+                        <Users className="w-4 h-4 mr-2" />
+                        Danışman Davet Et
                     </Button>
                     <Button variant="outline">
                         <Bell className="w-4 h-4 mr-2" />

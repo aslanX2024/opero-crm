@@ -62,6 +62,7 @@ export interface SignUpData {
     fullName: string;
     phone: string;
     role: "danisman" | "broker";
+    brokerEmail?: string;
 }
 
 // Context oluştur
@@ -174,8 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         // Sadece SIGNED_IN event'inde yönlendir
                         if (event === "SIGNED_IN") {
                             // Rol bazlı yönlendirme
-                            if (userProfile.role === "broker") {
-                                router.push("/broker");
+                            if (userProfile.role === "admin") {
+                                router.push("/admin");
+                            } else if (userProfile.role === "broker") {
+                                router.push("/dashboard/broker");
                             } else {
                                 router.push("/dashboard");
                             }
@@ -266,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         full_name: data.fullName,
                         phone: data.phone,
                         role: data.role,
+                        broker_email: data.brokerEmail,
                     },
                     // Email doğrulama için yönlendirme URL'i
                     emailRedirectTo: `${window.location.origin}/auth/callback`,

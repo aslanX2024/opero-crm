@@ -40,10 +40,9 @@ export default function LoginPage() {
 
             if (result.error) {
                 setError(result.error);
-            } else {
-                // Başarılı giriş - dashboard'a yönlendir
-                router.push("/dashboard");
             }
+            // NOT: Yönlendirme auth-context.tsx tarafından rol bazlı yapılıyor
+            // Burada manuel yönlendirme yapmıyoruz
         } catch (err) {
             setError("Beklenmeyen bir hata oluştu");
         } finally {

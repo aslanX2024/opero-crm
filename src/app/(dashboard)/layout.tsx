@@ -26,12 +26,8 @@ export default function DashboardLayout({
         }
     }, [user, loading, router]);
 
-    // Rol bazlı yönlendirme - broker farklı dashboard'a
-    useEffect(() => {
-        if (profile?.role === "broker") {
-            router.push("/broker");
-        }
-    }, [profile, router]);
+    // NOT: Rol bazlı yönlendirme auth-context.tsx tarafından yapılıyor
+    // Burada tekrar yönlendirme yapmaya gerek yok
 
     // Yükleniyor durumu
     if (loading) {

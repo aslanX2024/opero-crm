@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth, SignUpData } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,8 @@ import {
 // Kayıt sayfası
 export default function RegisterPage() {
     const { signUp } = useAuth();
+    const searchParams = useSearchParams();
+    const brokerEmail = searchParams.get("broker");
 
     // Form state
     const [formData, setFormData] = useState<SignUpData>({
@@ -34,6 +37,7 @@ export default function RegisterPage() {
         phone: "",
         password: "",
         role: "danisman", // Varsayılan rol: Danışman
+        brokerEmail: brokerEmail || undefined,
     });
     const [confirmPassword, setConfirmPassword] = useState("");
     const [acceptTerms, setAcceptTerms] = useState(false);
@@ -41,6 +45,12 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    useEffect(() => {
+        if (brokerEmail) {
+            setFormData(prev => ({ ...prev, brokerEmail, role: "danisman" }));
+        }
+    }, [brokerEmail]);
 
     // Input değişikliği
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
