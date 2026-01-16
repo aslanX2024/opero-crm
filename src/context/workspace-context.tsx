@@ -64,7 +64,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // Workspace'i yükle
     const refreshWorkspace = useCallback(async () => {
-        if (!user) {
+        if (!user || !profile?.workspace_id) {
             setWorkspace(null);
             setMembers([]);
             setLoading(false);
@@ -88,19 +88,39 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // TODO: Production'da Supabase'den workspace çek
-            // const { data: workspaceData } = await supabase
-            //     .from('workspaces')
-            //     .select('*')
-            //     .eq('id', profile?.workspace_id)
-            //     .single();
+            // Supabase'den workspace çek
+            const { supabase } = await import("@/lib/supabase");
+
+            const { data: workspaceData, error: wsError } = await supabase
+                .from('workspaces')
+                .select('*')
+                .eq('id', profile.workspace_id)
+                .single();
+
+            if (wsError) {
+                console.error("Workspace çekme hatası:", wsError);
+            } else if (workspaceData) {
+                setWorkspace(workspaceData as Workspace);
+            }
+
+            // Workspace üyelerini çek
+            const { data: membersData, error: membersError } = await supabase
+                .from('workspace_members')
+                .select('*')
+                .eq('workspace_id', profile.workspace_id);
+
+            if (membersError) {
+                console.error("Üyeler çekme hatası:", membersError);
+            } else if (membersData) {
+                setMembers(membersData as WorkspaceMember[]);
+            }
 
         } catch (error) {
             console.error("Workspace yükleme hatası:", error);
         } finally {
             setLoading(false);
         }
-    }, [user, inDemoMode]);
+    }, [user, profile?.workspace_id, inDemoMode]);
 
     // İlk yükleme
     useEffect(() => {

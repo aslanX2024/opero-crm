@@ -34,13 +34,16 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/context/workspace-context";
+import { uploadWorkspaceLogo, updateWorkspace, deleteWorkspaceLogo } from "@/lib/services/workspace";
 
 export default function SettingsPage() {
     const { profile } = useAuth();
-    const { workspace, isBroker } = useWorkspace();
+    const { workspace, isBroker, refreshWorkspace } = useWorkspace();
     const [theme, setTheme] = useState("system");
     const [officeLogo, setOfficeLogo] = useState<string | null>(workspace?.logo_url || null);
     const [officeName, setOfficeName] = useState(workspace?.name || "");
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [saving, setSaving] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
     const [notifications, setNotifications] = useState({
         email: true,
@@ -52,7 +55,7 @@ export default function SettingsPage() {
         weeklyReport: true,
     });
 
-    // Logo yükleme işlemi
+    // Logo yükleme işlemi - önizleme için
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -61,6 +64,7 @@ export default function SettingsPage() {
                 alert("Logo boyutu 2MB'ı geçemez");
                 return;
             }
+            setLogoFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setOfficeLogo(reader.result as string);
@@ -69,16 +73,61 @@ export default function SettingsPage() {
         }
     };
 
-    const handleRemoveLogo = () => {
+    const handleRemoveLogo = async () => {
+        if (workspace?.id) {
+            setSaving(true);
+            await deleteWorkspaceLogo(workspace.id);
+            await refreshWorkspace();
+            setSaving(false);
+        }
         setOfficeLogo(null);
+        setLogoFile(null);
         if (logoInputRef.current) {
             logoInputRef.current.value = "";
         }
     };
 
-    const handleSaveOffice = () => {
-        // TODO: Supabase'e kaydet
-        alert("Ofis bilgileri kaydedildi! (Demo mod - gerçek kayıt için Supabase bağlantısı gerekli)");
+    const handleSaveOffice = async () => {
+        if (!workspace?.id) {
+            alert("Workspace bulunamadı");
+            return;
+        }
+
+        setSaving(true);
+        try {
+            let logoUrl = workspace.logo_url;
+
+            // Yeni logo yüklendiyse Storage'a kaydet
+            if (logoFile) {
+                const uploadedUrl = await uploadWorkspaceLogo(workspace.id, logoFile);
+                if (uploadedUrl) {
+                    logoUrl = uploadedUrl;
+                } else {
+                    alert("Logo yüklenirken bir hata oluştu");
+                    setSaving(false);
+                    return;
+                }
+            }
+
+            // Workspace bilgilerini güncelle
+            const updated = await updateWorkspace(workspace.id, {
+                name: officeName,
+                logo_url: logoUrl || undefined,
+            });
+
+            if (updated) {
+                await refreshWorkspace();
+                alert("Ofis bilgileri başarıyla kaydedildi!");
+                setLogoFile(null);
+            } else {
+                alert("Kaydetme sırasında bir hata oluştu");
+            }
+        } catch (error) {
+            console.error("Kaydetme hatası:", error);
+            alert("Bir hata oluştu");
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -199,9 +248,22 @@ export default function SettingsPage() {
 
                                 {/* Kaydet Butonu */}
                                 <div className="flex justify-end pt-4 border-t">
-                                    <Button onClick={handleSaveOffice} className="bg-blue-600 gap-2">
-                                        <Save className="w-4 h-4" />
-                                        Kaydet
+                                    <Button
+                                        onClick={handleSaveOffice}
+                                        className="bg-blue-600 gap-2"
+                                        disabled={saving}
+                                    >
+                                        {saving ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                Kaydediliyor...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-4 h-4" />
+                                                Kaydet
+                                            </>
+                                        )}
                                     </Button>
                                 </div>
                             </CardContent>
