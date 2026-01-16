@@ -17,6 +17,8 @@ import {
     Crown,
     Receipt,
     ListTodo,
+    DollarSign,
+    Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -99,6 +101,16 @@ const brokerNavigationItems = [
         title: "Ofis Finansı",
         href: "/dashboard/broker/finance",
         icon: Receipt,
+    },
+    {
+        title: "Komisyon Modelleri",
+        href: "/dashboard/broker/settings/commission-models",
+        icon: DollarSign,
+    },
+    {
+        title: "Yarışma Ayarları",
+        href: "/dashboard/broker/settings/gamification",
+        icon: Award,
     },
 ];
 
