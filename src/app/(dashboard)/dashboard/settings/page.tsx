@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
     User,
     Bell,
@@ -13,6 +13,10 @@ import {
     Moon,
     Sun,
     Monitor,
+    Building2,
+    Upload,
+    X,
+    ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     Select,
     SelectContent,
@@ -28,9 +32,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/context/auth-context";
+import { useWorkspace } from "@/context/workspace-context";
 
 export default function SettingsPage() {
+    const { profile } = useAuth();
+    const { workspace, isBroker } = useWorkspace();
     const [theme, setTheme] = useState("system");
+    const [officeLogo, setOfficeLogo] = useState<string | null>(workspace?.logo_url || null);
+    const [officeName, setOfficeName] = useState(workspace?.name || "");
+    const logoInputRef = useRef<HTMLInputElement>(null);
     const [notifications, setNotifications] = useState({
         email: true,
         push: true,
@@ -40,6 +51,35 @@ export default function SettingsPage() {
         dealUpdate: true,
         weeklyReport: true,
     });
+
+    // Logo yükleme işlemi
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Max 2MB kontrolü
+            if (file.size > 2 * 1024 * 1024) {
+                alert("Logo boyutu 2MB'ı geçemez");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setOfficeLogo(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveLogo = () => {
+        setOfficeLogo(null);
+        if (logoInputRef.current) {
+            logoInputRef.current.value = "";
+        }
+    };
+
+    const handleSaveOffice = () => {
+        // TODO: Supabase'e kaydet
+        alert("Ofis bilgileri kaydedildi! (Demo mod - gerçek kayıt için Supabase bağlantısı gerekli)");
+    };
 
     return (
         <div className="space-y-6">
@@ -56,6 +96,12 @@ export default function SettingsPage() {
                         <User className="w-4 h-4" />
                         Profil
                     </TabsTrigger>
+                    {isBroker && (
+                        <TabsTrigger value="office" className="gap-2">
+                            <Building2 className="w-4 h-4" />
+                            Ofis
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="notifications" className="gap-2">
                         <Bell className="w-4 h-4" />
                         Bildirimler
@@ -69,6 +115,99 @@ export default function SettingsPage() {
                         Güvenlik
                     </TabsTrigger>
                 </TabsList>
+
+                {/* Ofis Ayarları - Sadece Broker için */}
+                {isBroker && (
+                    <TabsContent value="office">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Building2 className="w-5 h-5" />
+                                    Ofis Bilgileri
+                                </CardTitle>
+                                <CardDescription>
+                                    Ofisinizin logosunu ve bilgilerini yönetin. Logo, ekibinizdeki tüm üyeler tarafından görülecektir.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {/* Logo Yükleme */}
+                                <div className="space-y-4">
+                                    <Label>Ofis Logosu</Label>
+                                    <div className="flex items-start gap-6">
+                                        {/* Logo Önizleme */}
+                                        <div className="relative">
+                                            {officeLogo ? (
+                                                <div className="relative">
+                                                    <img
+                                                        src={officeLogo}
+                                                        alt="Ofis Logosu"
+                                                        className="w-24 h-24 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-700"
+                                                    />
+                                                    <button
+                                                        onClick={handleRemoveLogo}
+                                                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                                                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Upload Butonu */}
+                                        <div className="flex-1 space-y-2">
+                                            <input
+                                                ref={logoInputRef}
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                                onChange={handleLogoUpload}
+                                                className="hidden"
+                                                id="logo-upload"
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => logoInputRef.current?.click()}
+                                                className="gap-2"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                Logo Yükle
+                                            </Button>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                PNG, JPG veya WebP formatında, maksimum 2MB.
+                                                <br />
+                                                Önerilen boyut: 200x200 piksel (kare).
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Ofis Adı */}
+                                <div className="space-y-2">
+                                    <Label>Ofis Adı</Label>
+                                    <Input
+                                        value={officeName}
+                                        onChange={(e) => setOfficeName(e.target.value)}
+                                        placeholder="Örn: ABC Emlak Ofisi"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Bu isim sidebar&apos;da ve dashboard&apos;da görünecektir.
+                                    </p>
+                                </div>
+
+                                {/* Kaydet Butonu */}
+                                <div className="flex justify-end pt-4 border-t">
+                                    <Button onClick={handleSaveOffice} className="bg-blue-600 gap-2">
+                                        <Save className="w-4 h-4" />
+                                        Kaydet
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                )}
 
                 {/* Profil */}
                 <TabsContent value="profile">

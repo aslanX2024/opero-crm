@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { useAuth } from "@/context/auth-context";
+import { useWorkspace } from "@/context/workspace-context";
 import { Button } from "@/components/ui/button";
 import {
     Tooltip,
@@ -99,11 +100,16 @@ export function Sidebar() {
     const pathname = usePathname();
     const { sidebarCollapsed, toggleSidebarCollapsed } = useAppStore();
     const { profile } = useAuth();
+    const { workspace } = useWorkspace();
 
     // Rol bazlı navigasyon öğelerini birleştir
     const navigationItems = profile?.role === "broker"
         ? [...brokerNavigationItems, ...baseNavigationItems]
         : baseNavigationItems;
+
+    // Workspace logosu veya varsayılan logo
+    const hasWorkspaceLogo = workspace?.logo_url;
+    const workspaceName = workspace?.name || "OPERO";
 
     return (
         <TooltipProvider delayDuration={0}>
@@ -121,12 +127,20 @@ export function Sidebar() {
                     )}
                 >
                     <Link href="/dashboard" className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Building2 className="w-5 h-5 text-white" />
-                        </div>
+                        {hasWorkspaceLogo ? (
+                            <img
+                                src={workspace.logo_url}
+                                alt={workspaceName}
+                                className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Building2 className="w-5 h-5 text-white" />
+                            </div>
+                        )}
                         {!sidebarCollapsed && (
-                            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                                OPERO
+                            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate max-w-[140px]">
+                                {hasWorkspaceLogo ? workspaceName : "OPERO"}
                             </span>
                         )}
                     </Link>

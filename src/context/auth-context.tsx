@@ -162,6 +162,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             async (event, newSession) => {
                 console.log("Auth event:", event);
 
+                // INITIAL_SESSION zaten initializeAuth tarafından işleniyor, atla
+                if (event === "INITIAL_SESSION") {
+                    return;
+                }
+
+                // TOKEN_REFRESHED - sadece session güncelle, yönlendirme yapma
+                if (event === "TOKEN_REFRESHED") {
+                    setSession(newSession);
+                    if (newSession?.user) {
+                        setUser(newSession.user);
+                    }
+                    return;
+                }
+
                 // Session ve user'ı güncelle
                 setSession(newSession);
                 setUser(newSession?.user ?? null);
