@@ -92,11 +92,6 @@ const brokerNavigationItems = [
         href: "/dashboard/broker",
         icon: Crown,
     },
-    {
-        title: "Danışmanlar",
-        href: "/dashboard/broker/consultants",
-        icon: Users,
-    },
 ];
 
 // Sidebar bileşeni

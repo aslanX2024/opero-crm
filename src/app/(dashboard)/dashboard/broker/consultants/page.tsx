@@ -11,12 +11,18 @@ import {
     ChevronRight,
     Phone,
     Mail,
-    MoreVertical,
     ArrowUpDown,
+    UserPlus,
+    Link as LinkIcon,
+    Copy,
+    Check,
+    Crown,
+    Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,8 +31,31 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { getBrokerConsultants, ConsultantDetail } from "@/services/broker-consultant-service";
 import { useAuth } from "@/context/auth-context";
+
+// Roller
+type TeamRole = "danisman" | "mudur" | "broker";
+
+const ROLE_LABELS: Record<TeamRole, { label: string; color: string; icon: typeof Users }> = {
+    broker: { label: "Broker", color: "bg-amber-100 text-amber-700", icon: Crown },
+    mudur: { label: "Müdür", color: "bg-purple-100 text-purple-700", icon: Shield },
+    danisman: { label: "Danışman", color: "bg-blue-100 text-blue-700", icon: Users },
+};
 
 // XP'den seviye çıkar
 function getLevel(xp: number): string {
@@ -46,12 +75,16 @@ function formatCurrency(value: number): string {
     }).format(value);
 }
 
-export default function ConsultantsPage() {
+export default function TeamPage() {
     const { user } = useAuth();
     const [consultants, setConsultants] = useState<ConsultantDetail[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortBy, setSortBy] = useState<"name" | "sales" | "properties">("sales");
+    const [copied, setCopied] = useState(false);
+    const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState("");
+    const [inviteRole, setInviteRole] = useState<TeamRole>("danisman");
 
     useEffect(() => {
         async function loadConsultants() {
@@ -63,6 +96,31 @@ export default function ConsultantsPage() {
         }
         loadConsultants();
     }, [user]);
+
+    // Davet linki oluştur
+    const getInviteLink = () => {
+        const brokerEmail = user?.email || "";
+        return `${window.location.origin}/register?broker=${encodeURIComponent(brokerEmail)}&role=${inviteRole}`;
+    };
+
+    // Linki kopyala
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(getInviteLink());
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    // E-posta ile davet gönder (placeholder - gerçek implementasyon için backend gerekli)
+    const handleSendInvite = () => {
+        if (!inviteEmail) {
+            alert("E-posta adresi gerekli");
+            return;
+        }
+        // TODO: Backend'e davet isteği gönder
+        alert(`Davet ${inviteEmail} adresine gönderildi`);
+        setInviteEmail("");
+        setShowInviteDialog(false);
+    };
 
     // Filtreleme ve sıralama
     const filteredConsultants = consultants
@@ -106,17 +164,136 @@ export default function ConsultantsPage() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <Users className="w-7 h-7 text-blue-600" />
-                        Danışman Yönetimi
+                        Ekip Yönetimi
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400">
-                        Ofisinizdeki danışmanları yönetin ve performanslarını takip edin
+                        Ekibinizdeki üyeleri yönetin ve performanslarını takip edin
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/dashboard/broker">
-                        ← Dashboard'a Dön
-                    </Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Ekip Üyesi Ekle
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Yeni Ekip Üyesi Davet Et</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 pt-4">
+                                {/* Rol Seçimi */}
+                                <div>
+                                    <Label>Rol</Label>
+                                    <Select
+                                        value={inviteRole}
+                                        onValueChange={(v) => setInviteRole(v as TeamRole)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="danisman">Danışman</SelectItem>
+                                            <SelectItem value="mudur">Müdür</SelectItem>
+                                            <SelectItem value="broker">Broker / Yönetici</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Davet Linki */}
+                                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <LinkIcon className="w-4 h-4 text-blue-600" />
+                                        <span className="font-medium text-blue-900 dark:text-blue-100">Davet Linki</span>
+                                    </div>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                                        Bu linki paylaşarak yeni ekip üyesi ekleyebilirsiniz
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            readOnly
+                                            value={getInviteLink()}
+                                            className="text-xs bg-white dark:bg-gray-900"
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={handleCopyLink}
+                                            className="shrink-0"
+                                        >
+                                            {copied ? (
+                                                <Check className="w-4 h-4 text-green-600" />
+                                            ) : (
+                                                <Copy className="w-4 h-4" />
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* E-posta ile Davet */}
+                                <div className="border-t pt-4">
+                                    <Label>E-posta ile Davet</Label>
+                                    <div className="flex gap-2 mt-2">
+                                        <Input
+                                            type="email"
+                                            placeholder="ornek@email.com"
+                                            value={inviteEmail}
+                                            onChange={(e) => setInviteEmail(e.target.value)}
+                                        />
+                                        <Button onClick={handleSendInvite} className="shrink-0">
+                                            <Mail className="w-4 h-4 mr-2" />
+                                            Gönder
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" asChild>
+                        <Link href="/dashboard/broker">
+                            ← Dashboard
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+
+            {/* Davet Linki Banner */}
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
+                            <LinkIcon className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <div className="font-medium text-blue-900 dark:text-blue-100">
+                                Hızlı Davet Linki
+                            </div>
+                            <div className="text-sm text-blue-700 dark:text-blue-300">
+                                Bu linki paylaşarak yeni danışman ekleyebilirsiniz
+                            </div>
+                        </div>
+                    </div>
+                    <Button
+                        onClick={() => {
+                            setInviteRole("danisman");
+                            handleCopyLink();
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                    >
+                        {copied ? (
+                            <>
+                                <Check className="w-4 h-4 mr-2" />
+                                Kopyalandı
+                            </>
+                        ) : (
+                            <>
+                                <Copy className="w-4 h-4 mr-2" />
+                                Linki Kopyala
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {/* Özet Kartları */}
@@ -129,7 +306,7 @@ export default function ConsultantsPage() {
                             </div>
                             <div>
                                 <p className="text-2xl font-bold">{totalStats.consultants}</p>
-                                <p className="text-sm text-gray-500">Toplam Danışman</p>
+                                <p className="text-sm text-gray-500">Ekip Üyesi</p>
                             </div>
                         </div>
                     </CardContent>
@@ -182,12 +359,12 @@ export default function ConsultantsPage() {
             <Card>
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <CardTitle>Danışman Listesi</CardTitle>
+                        <CardTitle>Ekip Listesi</CardTitle>
                         <div className="flex gap-2">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
-                                    placeholder="Danışman ara..."
+                                    placeholder="Ekip üyesi ara..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-9 w-64"
@@ -219,10 +396,14 @@ export default function ConsultantsPage() {
                     {filteredConsultants.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">
                             <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>Henüz danışman bulunmuyor</p>
-                            <p className="text-sm mt-2">
-                                Danışman davet linki ile yeni danışmanlar ekleyebilirsiniz
+                            <p className="text-lg font-medium mb-2">Henüz ekip üyesi bulunmuyor</p>
+                            <p className="text-sm mb-4">
+                                Yukarıdaki "Ekip Üyesi Ekle" butonunu kullanarak yeni üye davet edebilirsiniz
                             </p>
+                            <Button onClick={() => setShowInviteDialog(true)}>
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                İlk Ekip Üyesini Davet Et
+                            </Button>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -239,7 +420,12 @@ export default function ConsultantsPage() {
                                             </AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <p className="font-medium">{consultant.full_name || "İsimsiz"}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium">{consultant.full_name || "İsimsiz"}</p>
+                                                <Badge className={ROLE_LABELS[consultant.role as TeamRole]?.color || ROLE_LABELS.danisman.color}>
+                                                    {ROLE_LABELS[consultant.role as TeamRole]?.label || "Danışman"}
+                                                </Badge>
+                                            </div>
                                             <p className="text-sm text-gray-500">{consultant.email}</p>
                                         </div>
                                         <Badge variant="outline" className="ml-2">

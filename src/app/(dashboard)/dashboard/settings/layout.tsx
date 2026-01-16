@@ -40,12 +40,6 @@ const settingsNav: SettingsNavSection[] = [
         ],
     },
     {
-        title: "Ekip",
-        items: [
-            { href: "/dashboard/settings/team", label: "Ekip Yönetimi", icon: Users, brokerOnly: true },
-        ],
-    },
-    {
         title: "Faturalama",
         items: [
             { href: "/dashboard/settings/billing", label: "Plan & Fatura", icon: CreditCard, ownerOnly: true },

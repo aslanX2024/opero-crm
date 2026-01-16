@@ -91,7 +91,7 @@ export default function BrokerDashboard() {
                     <Button variant="outline" asChild>
                         <Link href="/dashboard/broker/consultants">
                             <Users className="w-4 h-4 mr-2" />
-                            Danışmanlar
+                            Ekip
                         </Link>
                     </Button>
                     <Button variant="outline" asChild>
