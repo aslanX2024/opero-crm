@@ -20,6 +20,8 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Wallet,
+    Receipt,
+    Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +44,11 @@ import {
     formatCurrency,
     CommissionStatus,
 } from "@/types/finance";
+import { useAuth } from "@/context/auth-context";
 
 export default function FinanceDashboard() {
+    const { profile } = useAuth();
+    const isBroker = profile?.role === "broker";
     const [transactions] = useState(DEMO_TRANSACTIONS);
     const [agentSummaries] = useState(DEMO_AGENT_SUMMARIES);
     const [monthlyRevenues] = useState(DEMO_MONTHLY_REVENUES);
@@ -110,6 +115,14 @@ export default function FinanceDashboard() {
                         <FileText className="w-4 h-4 mr-2" />
                         PDF
                     </Button>
+                    {isBroker && (
+                        <Link href="/dashboard/broker/finance">
+                            <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                                <Receipt className="w-4 h-4 mr-2" />
+                                Ofis Giderleri
+                            </Button>
+                        </Link>
+                    )}
                 </div>
             </div>
 
@@ -459,7 +472,17 @@ export default function FinanceDashboard() {
             {/* Komisyon Modelleri Bilgi */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Komisyon Paylaşım Modelleri</CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle>Komisyon Paylaşım Modelleri</CardTitle>
+                        {isBroker && (
+                            <Link href="/dashboard/broker/settings/commission-models">
+                                <Button variant="outline" size="sm">
+                                    <Settings className="w-4 h-4 mr-2" />
+                                    Modelleri Düzenle
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

@@ -1,41 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import {
     Plus,
-    CheckCircle2,
-    Clock,
-    AlertCircle,
-    Calendar,
-    Trash2,
-    Edit,
-    MoreHorizontal,
-    Filter,
-    Search,
     ListTodo,
-    Loader2,
+    Users,
+    Zap,
+    Calendar,
+    Clock,
+    CheckCircle,
+    Edit,
+    Trash2,
+    RefreshCw,
+    CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
     Dialog,
     DialogContent,
@@ -43,138 +28,155 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
-import {
-    Task,
-    getTasks,
-    createTask,
-    updateTask,
-    updateTaskStatus,
-    deleteTask,
-    getTaskStats,
-    PRIORITY_LABELS,
-    STATUS_LABELS,
-    CreateTaskInput,
-} from "@/services/task-service";
-import { ErrorState } from "@/components/ui/error-state";
-import { EmptyState } from "@/components/ui/empty-state";
+import { supabase } from "@/lib/supabase";
 
-// Öncelik rengi
-function getPriorityColor(priority: string) {
-    switch (priority) {
-        case "high": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-        case "medium": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-        case "low": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-        default: return "bg-gray-100 text-gray-700";
-    }
+// Görev tipi
+interface BrokerTask {
+    id: string;
+    title: string;
+    description?: string | null;
+    xp_reward: number;
+    recurrence_type: "daily" | "weekly" | "one_time";
+    is_active: boolean;
+    created_at: string;
 }
 
-// Durum rengi
-function getStatusColor(status: string) {
-    switch (status) {
-        case "completed": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-        case "in_progress": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-        case "pending": return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
-        default: return "bg-gray-100 text-gray-700";
-    }
-}
-
-// Tarih kontrolü
-function isOverdue(dueDate?: string) {
-    if (!dueDate) return false;
-    const today = new Date().toISOString().split("T")[0];
-    return dueDate < today;
-}
+// Tekrarlama tipi renkleri
+const RECURRENCE_COLORS = {
+    daily: { label: "Günlük", color: "bg-blue-100 text-blue-700", icon: Calendar },
+    weekly: { label: "Haftalık", color: "bg-purple-100 text-purple-700", icon: CalendarDays },
+    one_time: { label: "Tek Seferlik", color: "bg-gray-100 text-gray-700", icon: Clock },
+};
 
 export default function TasksPage() {
-    const { user } = useAuth();
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, completed: 0, overdue: 0 });
+    const { profile, user } = useAuth();
+    const isBroker = profile?.role === "broker";
+    const [tasks, setTasks] = useState<BrokerTask[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<BrokerTask | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterStatus, setFilterStatus] = useState<string>("all");
-    const [filterPriority, setFilterPriority] = useState<string>("all");
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [formData, setFormData] = useState<CreateTaskInput>({
+
+    const [formData, setFormData] = useState({
         title: "",
         description: "",
-        due_date: "",
-        priority: "medium",
-        status: "pending",
+        xp_reward: 20,
+        recurrence_type: "daily" as "daily" | "weekly" | "one_time",
+        is_active: true,
     });
 
     // Görevleri yükle
-    const loadTasks = async () => {
-        if (!user?.id) return;
+    useEffect(() => {
+        async function loadTasks() {
+            if (!user) return;
+            setLoading(true);
 
-        setLoading(true);
-        setError(null);
+            // Şimdilik user.id kullanıyoruz
+            // Danışman-broker ilişkisi için profiles tablosunda broker_id alanı eklenebilir
+            const brokerId = user.id;
 
-        try {
-            const [tasksData, statsData] = await Promise.all([
-                getTasks(user.id),
-                getTaskStats(user.id),
-            ]);
-            setTasks(tasksData);
-            setStats(statsData);
-        } catch (err) {
-            setError("Görevler yüklenirken bir hata oluştu.");
-        } finally {
+            if (!brokerId) {
+                setTasks([]);
+                setLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from("broker_tasks")
+                .select("*")
+                .eq("broker_id", brokerId)
+                .order("created_at", { ascending: false });
+
+            if (!error && data) {
+                setTasks(data);
+            } else {
+                setTasks([]);
+            }
             setLoading(false);
         }
-    };
 
-    useEffect(() => {
         loadTasks();
-    }, [user?.id]);
+    }, [user, profile, isBroker]);
 
-    // Filtrelenmiş görevler
-    const filteredTasks = tasks.filter((task) => {
-        // Arama
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            if (!task.title.toLowerCase().includes(query) &&
-                !(task.description || "").toLowerCase().includes(query)) {
-                return false;
-            }
+    // Kaydet
+    const handleSave = async () => {
+        if (!user || !formData.title.trim()) {
+            setError("Görev başlığı zorunludur.");
+            return;
         }
 
-        // Durum filtresi
-        if (filterStatus !== "all" && task.status !== filterStatus) {
-            return false;
-        }
+        setError(null);
 
-        // Öncelik filtresi
-        if (filterPriority !== "all" && task.priority !== filterPriority) {
-            return false;
-        }
-
-        return true;
-    });
-
-    // Form gönder
-    const handleSubmit = async () => {
-        if (!user?.id || !formData.title.trim()) return;
+        const payload = {
+            broker_id: user.id,
+            title: formData.title,
+            description: formData.description || null,
+            xp_reward: formData.xp_reward,
+            recurrence_type: formData.recurrence_type,
+            is_active: formData.is_active,
+        };
 
         if (editingTask) {
-            // Güncelle
-            const updated = await updateTask(editingTask.id, formData);
-            if (updated) {
-                setTasks(tasks.map(t => t.id === editingTask.id ? updated : t));
+            const { error } = await supabase
+                .from("broker_tasks")
+                .update(payload)
+                .eq("id", editingTask.id);
+
+            if (error) {
+                setError(error.message);
+                return;
             }
+
+            setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
         } else {
-            // Oluştur
-            const created = await createTask(user.id, formData);
-            if (created) {
-                setTasks([created, ...tasks]);
-                setStats({ ...stats, total: stats.total + 1, pending: stats.pending + 1 });
+            const { data, error } = await supabase
+                .from("broker_tasks")
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) {
+                setError(error.message);
+                return;
             }
+
+            setTasks([data, ...tasks]);
         }
 
         resetForm();
+    };
+
+    // Sil
+    const handleDelete = async (id: string) => {
+        const { error } = await supabase
+            .from("broker_tasks")
+            .delete()
+            .eq("id", id);
+
+        if (!error) {
+            setTasks(tasks.filter(t => t.id !== id));
+        }
+    };
+
+    // Aktif/Pasif yap
+    const toggleActive = async (task: BrokerTask) => {
+        const { error } = await supabase
+            .from("broker_tasks")
+            .update({ is_active: !task.is_active })
+            .eq("id", task.id);
+
+        if (!error) {
+            setTasks(tasks.map(t => t.id === task.id ? { ...t, is_active: !t.is_active } : t));
+        }
     };
 
     // Form sıfırla
@@ -182,61 +184,35 @@ export default function TasksPage() {
         setFormData({
             title: "",
             description: "",
-            due_date: "",
-            priority: "medium",
-            status: "pending",
+            xp_reward: 20,
+            recurrence_type: "daily",
+            is_active: true,
         });
         setEditingTask(null);
-        setIsAddDialogOpen(false);
+        setIsDialogOpen(false);
+        setError(null);
     };
 
     // Düzenle
-    const handleEdit = (task: Task) => {
+    const handleEdit = (task: BrokerTask) => {
         setEditingTask(task);
         setFormData({
             title: task.title,
             description: task.description || "",
-            due_date: task.due_date || "",
-            priority: task.priority,
-            status: task.status,
+            xp_reward: task.xp_reward,
+            recurrence_type: task.recurrence_type,
+            is_active: task.is_active,
         });
-        setIsAddDialogOpen(true);
+        setIsDialogOpen(true);
     };
 
-    // Durumu değiştir
-    const handleStatusChange = async (taskId: string, status: Task["status"]) => {
-        await updateTaskStatus(taskId, status);
-        setTasks(tasks.map(t => t.id === taskId ? { ...t, status } : t));
-        loadTasks(); // Stats'ı da güncelle
+    // İstatistikler
+    const stats = {
+        total: tasks.length,
+        active: tasks.filter(t => t.is_active).length,
+        daily: tasks.filter(t => t.recurrence_type === "daily" && t.is_active).length,
+        totalXP: tasks.filter(t => t.is_active).reduce((sum, t) => sum + t.xp_reward, 0),
     };
-
-    // Sil
-    const handleDelete = async (taskId: string) => {
-        const success = await deleteTask(taskId);
-        if (success) {
-            setTasks(tasks.filter(t => t.id !== taskId));
-            setStats({ ...stats, total: stats.total - 1 });
-        }
-    };
-
-    // Tamamlandı olarak işaretle
-    const handleToggleComplete = async (task: Task) => {
-        const newStatus = task.status === "completed" ? "pending" : "completed";
-        await handleStatusChange(task.id, newStatus);
-    };
-
-    if (error) {
-        return <ErrorState message={error} onRetry={loadTasks} />;
-    }
-
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-64 gap-4">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                <p className="text-gray-500">Görevler yükleniyor...</p>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6">
@@ -245,287 +221,287 @@ export default function TasksPage() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <ListTodo className="w-7 h-7 text-blue-600" />
-                        Görevler
+                        {isBroker ? "Görev Yönetimi" : "Görevlerim"}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400">
-                        Görevlerinizi yönetin ve takip edin
+                        {isBroker
+                            ? "Danışmanlarınıza atanacak görevleri yönetin"
+                            : "Broker tarafından size atanan görevler"}
                     </p>
                 </div>
-                <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-                    setIsAddDialogOpen(open);
-                    if (!open) resetForm();
-                }}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Yeni Görev
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>
-                                {editingTask ? "Görevi Düzenle" : "Yeni Görev Ekle"}
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 pt-4">
-                            <div>
-                                <Label htmlFor="title">Başlık *</Label>
-                                <Input
-                                    id="title"
-                                    placeholder="Görev başlığı..."
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="description">Açıklama</Label>
-                                <Textarea
-                                    id="description"
-                                    placeholder="Açıklama (opsiyonel)..."
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    rows={3}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+
+                {isBroker && (
+                    <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                        setIsDialogOpen(open);
+                        if (!open) resetForm();
+                    }}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Yeni Görev
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {editingTask ? "Görevi Düzenle" : "Yeni Görev Oluştur"}
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 pt-4">
                                 <div>
-                                    <Label htmlFor="due_date">Bitiş Tarihi</Label>
+                                    <Label htmlFor="title">Görev Başlığı *</Label>
                                     <Input
-                                        id="due_date"
-                                        type="date"
-                                        value={formData.due_date}
-                                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                                        id="title"
+                                        placeholder="Örn: Günlük 3 müşteri araması"
+                                        value={formData.title}
+                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <Label htmlFor="priority">Öncelik</Label>
-                                    <Select
-                                        value={formData.priority}
-                                        onValueChange={(v) => setFormData({ ...formData, priority: v as any })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="low">🟢 Düşük</SelectItem>
-                                            <SelectItem value="medium">🟡 Orta</SelectItem>
-                                            <SelectItem value="high">🔴 Yüksek</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="description">Açıklama</Label>
+                                    <Textarea
+                                        id="description"
+                                        placeholder="Görev detayları..."
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        rows={2}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="xp_reward">XP Ödülü</Label>
+                                        <Input
+                                            id="xp_reward"
+                                            type="number"
+                                            min={1}
+                                            value={formData.xp_reward}
+                                            onChange={(e) => setFormData({ ...formData, xp_reward: parseInt(e.target.value) || 1 })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Tekrar Tipi</Label>
+                                        <Select
+                                            value={formData.recurrence_type}
+                                            onValueChange={(v) => setFormData({ ...formData, recurrence_type: v as any })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="daily">Günlük</SelectItem>
+                                                <SelectItem value="weekly">Haftalık</SelectItem>
+                                                <SelectItem value="one_time">Tek Seferlik</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div>
+                                        <p className="font-medium text-sm">Aktif Görev</p>
+                                        <p className="text-xs text-gray-500">Danışmanlar görebilir</p>
+                                    </div>
+                                    <Switch
+                                        checked={formData.is_active}
+                                        onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                                    />
+                                </div>
+
+                                {error && (
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600">
+                                        {error}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 pt-2">
+                                    <Button variant="outline" className="flex-1" onClick={resetForm}>
+                                        İptal
+                                    </Button>
+                                    <Button className="flex-1" onClick={handleSave}>
+                                        {editingTask ? "Güncelle" : "Oluştur"}
+                                    </Button>
                                 </div>
                             </div>
-                            {editingTask && (
+                        </DialogContent>
+                    </Dialog>
+                )}
+            </div>
+
+            {/* Broker İstatistikleri */}
+            {isBroker && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                    <ListTodo className="w-5 h-5 text-blue-600" />
+                                </div>
                                 <div>
-                                    <Label htmlFor="status">Durum</Label>
-                                    <Select
-                                        value={formData.status}
-                                        onValueChange={(v) => setFormData({ ...formData, status: v as any })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="pending">Bekliyor</SelectItem>
-                                            <SelectItem value="in_progress">Devam Ediyor</SelectItem>
-                                            <SelectItem value="completed">Tamamlandı</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <p className="text-2xl font-bold">{stats.total}</p>
+                                    <p className="text-xs text-gray-500">Toplam Görev</p>
                                 </div>
-                            )}
-                            <div className="flex gap-2 pt-4">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={resetForm}
-                                >
-                                    İptal
-                                </Button>
-                                <Button
-                                    className="flex-1"
-                                    onClick={handleSubmit}
-                                    disabled={!formData.title.trim()}
-                                >
-                                    {editingTask ? "Güncelle" : "Oluştur"}
-                                </Button>
                             </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            {/* İstatistik Kartları */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <Card>
-                    <CardContent className="p-4">
-                        <p className="text-sm text-gray-500">Toplam</p>
-                        <p className="text-2xl font-bold">{stats.total}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-gray-300 dark:border-gray-700">
-                    <CardContent className="p-4">
-                        <p className="text-sm text-gray-500">Bekliyor</p>
-                        <p className="text-2xl font-bold text-gray-600">{stats.pending}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-blue-300 dark:border-blue-700">
-                    <CardContent className="p-4">
-                        <p className="text-sm text-blue-600">Devam Ediyor</p>
-                        <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-green-300 dark:border-green-700">
-                    <CardContent className="p-4">
-                        <p className="text-sm text-green-600">Tamamlandı</p>
-                        <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-red-300 dark:border-red-700">
-                    <CardContent className="p-4">
-                        <p className="text-sm text-red-600">Gecikmiş</p>
-                        <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Filtreler */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                        placeholder="Görev ara..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                    />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold">{stats.active}</p>
+                                    <p className="text-xs text-gray-500">Aktif Görev</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                                    <RefreshCw className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold">{stats.daily}</p>
+                                    <p className="text-xs text-gray-500">Günlük Görev</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                                    <Zap className="w-5 h-5 text-yellow-600" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold">{stats.totalXP}</p>
+                                    <p className="text-xs text-gray-500">Günlük Max XP</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Durum" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Tüm Durumlar</SelectItem>
-                        <SelectItem value="pending">Bekliyor</SelectItem>
-                        <SelectItem value="in_progress">Devam Ediyor</SelectItem>
-                        <SelectItem value="completed">Tamamlandı</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Select value={filterPriority} onValueChange={setFilterPriority}>
-                    <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Öncelik" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Tüm Öncelikler</SelectItem>
-                        <SelectItem value="high">🔴 Yüksek</SelectItem>
-                        <SelectItem value="medium">🟡 Orta</SelectItem>
-                        <SelectItem value="low">🟢 Düşük</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            )}
 
             {/* Görev Listesi */}
-            <Card>
-                <CardContent className="p-0">
-                    {filteredTasks.length === 0 ? (
-                        <EmptyState
-                            icon={ListTodo}
-                            title="Görev Bulunamadı"
-                            description={tasks.length === 0
-                                ? "Henüz görev eklenmemiş. İlk görevinizi oluşturun!"
-                                : "Arama kriterlerinize uygun görev bulunamadı."
-                            }
-                            actionLabel={tasks.length === 0 ? "Yeni Görev" : undefined}
-                            onAction={tasks.length === 0 ? () => setIsAddDialogOpen(true) : undefined}
-                        />
-                    ) : (
-                        <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                            {filteredTasks.map((task) => {
-                                const overdue = isOverdue(task.due_date) && task.status !== "completed";
+            {loading ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+            ) : tasks.length === 0 ? (
+                <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                            <ListTodo className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">
+                            {isBroker ? "Henüz Görev Yok" : "Atanmış Görev Bulunamadı"}
+                        </h3>
+                        <p className="text-gray-500 text-center mb-4 max-w-md">
+                            {isBroker
+                                ? "Danışmanlarınız için günlük, haftalık veya tek seferlik görevler oluşturun. Tamamladıklarında XP kazanırlar."
+                                : "Broker henüz size görev atamamış."}
+                        </p>
+                        {isBroker && (
+                            <Button onClick={() => setIsDialogOpen(true)}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                İlk Görevi Oluştur
+                            </Button>
+                        )}
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="grid gap-4">
+                    {tasks.map((task) => {
+                        const recurrenceInfo = RECURRENCE_COLORS[task.recurrence_type];
+                        const RecurrenceIcon = recurrenceInfo.icon;
 
-                                return (
-                                    <div
-                                        key={task.id}
-                                        className={cn(
-                                            "flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                                            task.status === "completed" && "opacity-60"
-                                        )}
-                                    >
-                                        {/* Checkbox */}
-                                        <Checkbox
-                                            checked={task.status === "completed"}
-                                            onCheckedChange={() => handleToggleComplete(task)}
-                                            className="w-5 h-5"
-                                        />
-
-                                        {/* İçerik */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <p className={cn(
-                                                    "font-medium",
-                                                    task.status === "completed" && "line-through text-gray-500"
-                                                )}>
-                                                    {task.title}
-                                                </p>
-                                                <Badge className={getPriorityColor(task.priority)}>
-                                                    {PRIORITY_LABELS[task.priority]}
-                                                </Badge>
-                                                {task.status !== "pending" && (
-                                                    <Badge className={getStatusColor(task.status)}>
-                                                        {STATUS_LABELS[task.status]}
+                        return (
+                            <Card
+                                key={task.id}
+                                className={cn(
+                                    "transition-opacity",
+                                    !task.is_active && "opacity-60"
+                                )}
+                            >
+                                <CardContent className="p-4">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-start gap-3 flex-1">
+                                            <div className={cn(
+                                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                                                task.is_active ? "bg-blue-100 dark:bg-blue-900/30" : "bg-gray-100 dark:bg-gray-800"
+                                            )}>
+                                                <RecurrenceIcon className={cn(
+                                                    "w-5 h-5",
+                                                    task.is_active ? "text-blue-600" : "text-gray-400"
+                                                )} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h3 className="font-semibold">{task.title}</h3>
+                                                    <Badge className={recurrenceInfo.color}>
+                                                        {recurrenceInfo.label}
                                                     </Badge>
+                                                    {!task.is_active && (
+                                                        <Badge variant="secondary">Pasif</Badge>
+                                                    )}
+                                                </div>
+                                                {task.description && (
+                                                    <p className="text-sm text-gray-500 mt-1">{task.description}</p>
                                                 )}
                                             </div>
-                                            {task.description && (
-                                                <p className="text-sm text-gray-500 mt-1 truncate">
-                                                    {task.description}
-                                                </p>
-                                            )}
                                         </div>
 
-                                        {/* Tarih */}
-                                        {task.due_date && (
-                                            <div className={cn(
-                                                "flex items-center gap-1 text-sm",
-                                                overdue ? "text-red-600" : "text-gray-500"
-                                            )}>
-                                                {overdue && <AlertCircle className="w-4 h-4" />}
-                                                <Calendar className="w-4 h-4" />
-                                                <span>
-                                                    {new Date(task.due_date).toLocaleDateString("tr-TR", {
-                                                        day: "numeric",
-                                                        month: "short",
-                                                    })}
-                                                </span>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <div className="text-right">
+                                                <div className="flex items-center gap-1 text-yellow-600">
+                                                    <Zap className="w-4 h-4" />
+                                                    <span className="font-bold">+{task.xp_reward} XP</span>
+                                                </div>
                                             </div>
-                                        )}
 
-                                        {/* Aksiyonlar */}
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="w-8 h-8">
-                                                    <MoreHorizontal className="w-4 h-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleEdit(task)}>
-                                                    <Edit className="w-4 h-4 mr-2" />
-                                                    Düzenle
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="text-red-600"
-                                                    onClick={() => handleDelete(task.id)}
-                                                >
-                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                    Sil
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                            {isBroker && (
+                                                <div className="flex gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => toggleActive(task)}
+                                                    >
+                                                        {task.is_active ? (
+                                                            <CheckCircle className="w-4 h-4 text-green-600" />
+                                                        ) : (
+                                                            <Clock className="w-4 h-4 text-gray-400" />
+                                                        )}
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => handleEdit(task)}
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-600"
+                                                        onClick={() => handleDelete(task.id)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

@@ -97,21 +97,6 @@ const brokerNavigationItems = [
         href: "/dashboard/broker/consultants",
         icon: Users,
     },
-    {
-        title: "Ofis Finansı",
-        href: "/dashboard/broker/finance",
-        icon: Receipt,
-    },
-    {
-        title: "Komisyon Modelleri",
-        href: "/dashboard/broker/settings/commission-models",
-        icon: DollarSign,
-    },
-    {
-        title: "Yarışma Ayarları",
-        href: "/dashboard/broker/settings/gamification",
-        icon: Award,
-    },
 ];
 
 // Sidebar bileşeni

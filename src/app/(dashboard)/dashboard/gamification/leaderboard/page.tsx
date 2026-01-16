@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
     Trophy,
     Medal,
@@ -16,6 +17,7 @@ import {
     Calendar,
     ChevronRight,
     Flame,
+    Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,10 +35,13 @@ import {
     formatTimeRemaining,
     LeaderboardEntry,
 } from "@/types/gamification";
+import { useAuth } from "@/context/auth-context";
 
 type Period = "daily" | "weekly" | "monthly" | "allTime";
 
 export default function LeaderboardPage() {
+    const { profile } = useAuth();
+    const isBroker = profile?.role === "broker";
     const [period, setPeriod] = useState<Period>("weekly");
     const [leaderboard] = useState(DEMO_LEADERBOARD);
     const [currentUser] = useState(DEMO_CURRENT_USER);
@@ -72,6 +77,14 @@ export default function LeaderboardPage() {
                         En yüksek performans gösteren danışmanlar
                     </p>
                 </div>
+                {isBroker && (
+                    <Link href="/dashboard/broker/settings/gamification">
+                        <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                            <Settings className="w-4 h-4 mr-2" />
+                            Yarışma Ayarları
+                        </Button>
+                    </Link>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
