@@ -64,7 +64,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // Workspace'i yükle
     const refreshWorkspace = useCallback(async () => {
-        if (!user || !profile?.workspace_id) {
+        if (!user) {
             setWorkspace(null);
             setMembers([]);
             setLoading(false);
@@ -91,10 +91,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             // Supabase'den workspace çek
             const { supabase } = await import("@/lib/supabase");
 
+            let workspaceId = profile?.workspace_id;
+
+            // Eğer profile'da workspace_id yoksa, kullanıcının sahibi olduğu workspace'i bul
+            if (!workspaceId) {
+                const { data: ownedWorkspace } = await supabase
+                    .from('workspaces')
+                    .select('id')
+                    .eq('owner_id', user.id)
+                    .single();
+
+                if (ownedWorkspace) {
+                    workspaceId = ownedWorkspace.id;
+                }
+            }
+
+            if (!workspaceId) {
+                console.log("Kullanıcının workspace'i bulunamadı");
+                setLoading(false);
+                return;
+            }
+
             const { data: workspaceData, error: wsError } = await supabase
                 .from('workspaces')
                 .select('*')
-                .eq('id', profile.workspace_id)
+                .eq('id', workspaceId)
                 .single();
 
             if (wsError) {
@@ -107,7 +128,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             const { data: membersData, error: membersError } = await supabase
                 .from('workspace_members')
                 .select('*')
-                .eq('workspace_id', profile.workspace_id);
+                .eq('workspace_id', workspaceId);
 
             if (membersError) {
                 console.error("Üyeler çekme hatası:", membersError);
@@ -120,7 +141,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, [user, profile?.workspace_id, inDemoMode]);
+    }, [user, profile, inDemoMode]);
 
     // İlk yükleme
     useEffect(() => {
