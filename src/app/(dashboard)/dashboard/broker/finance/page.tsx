@@ -92,6 +92,7 @@ export default function BrokerFinancePage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     });
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [addError, setAddError] = useState<string | null>(null);
     const [newExpense, setNewExpense] = useState({
         amount: "",
         category: "rent",
@@ -133,7 +134,12 @@ export default function BrokerFinancePage() {
 
     // Gider ekle
     const handleAddExpense = async () => {
-        if (!user || !newExpense.amount) return;
+        if (!user || !newExpense.amount) {
+            setAddError("Tutar girilmesi zorunludur.");
+            return;
+        }
+
+        setAddError(null);
 
         const { data, error } = await supabase
             .from("office_expenses")
@@ -150,7 +156,13 @@ export default function BrokerFinancePage() {
             .select()
             .single();
 
-        if (!error && data) {
+        if (error) {
+            console.error("Error adding expense:", error);
+            setAddError(error.message || "Gider eklenirken bir hata oluştu.");
+            return;
+        }
+
+        if (data) {
             setExpenses([data, ...expenses]);
             setNewExpense({
                 amount: "",
@@ -323,6 +335,11 @@ export default function BrokerFinancePage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                {addError && (
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+                                        {addError}
+                                    </div>
+                                )}
                                 <Button className="w-full" onClick={handleAddExpense}>
                                     Gider Ekle
                                 </Button>

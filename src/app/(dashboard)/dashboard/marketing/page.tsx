@@ -43,21 +43,23 @@ import {
 } from "@/types/marketing";
 
 export default function MarketingDashboard() {
-    const [channels] = useState(DEMO_CHANNELS);
-    const [signboards] = useState(DEMO_SIGNBOARDS);
-    const [brochures] = useState(DEMO_BROCHURES);
-    const [campaigns] = useState(DEMO_CAMPAIGNS);
-    const [trends] = useState(DEMO_WEEKLY_TRENDS);
+    // Artık demo veri kullanmıyoruz - boş başlangıç
+    const [channels] = useState<MarketingChannel[]>([]);
+    const [signboards] = useState<any[]>([]);
+    const [brochures] = useState<any[]>([]);
+    const [campaigns] = useState<any[]>([]);
+    const [trends] = useState<any[]>([]);
 
     // Toplam metrikler
     const totalLeads = useMemo(() => channels.reduce((sum, c) => sum + c.leads_count, 0), [channels]);
     const totalCost = useMemo(() => channels.reduce((sum, c) => sum + c.cost, 0), [channels]);
     const totalConversions = useMemo(() => channels.reduce((sum, c) => sum + c.conversions, 0), [channels]);
-    const averageCPL = calculateCPL(totalCost, totalLeads);
-    const conversionRate = calculateConversionRate(totalLeads, totalConversions);
+    const averageCPL = channels.length > 0 ? calculateCPL(totalCost, totalLeads) : 0;
+    const conversionRate = channels.length > 0 ? calculateConversionRate(totalLeads, totalConversions) : 0;
 
     // En iyi kanal
     const bestChannel = useMemo(() => {
+        if (channels.length === 0) return null;
         return [...channels].sort((a, b) => b.conversions - a.conversions)[0];
     }, [channels]);
 
@@ -68,7 +70,7 @@ export default function MarketingDashboard() {
     const activeCampaigns = campaigns.filter((c) => c.status === "aktif");
 
     // En yüksek lead sayısı (chart scale için)
-    const maxLeads = Math.max(...channels.map((c) => c.leads_count));
+    const maxLeads = channels.length > 0 ? Math.max(...channels.map((c) => c.leads_count)) : 0;
 
     return (
         <div className="space-y-6">
@@ -145,8 +147,8 @@ export default function MarketingDashboard() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-500">En İyi Kanal</p>
-                                <p className="text-xl font-bold text-yellow-600">{bestChannel.name}</p>
-                                <p className="text-xs text-gray-500">{bestChannel.conversions} dönüşüm</p>
+                                <p className="text-xl font-bold text-yellow-600">{bestChannel?.name || "-"}</p>
+                                <p className="text-xs text-gray-500">{bestChannel?.conversions || 0} dönüşüm</p>
                             </div>
                             <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
                                 <Award className="w-6 h-6 text-yellow-600" />
