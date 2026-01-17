@@ -91,15 +91,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             // Supabase'den workspace çek
             const { supabase } = await import("@/lib/supabase");
 
+            console.log("🔍 Workspace araması başlıyor...");
+            console.log("User ID:", user.id);
+            console.log("Profile workspace_id:", profile?.workspace_id);
+
             let workspaceId = profile?.workspace_id;
 
             // Eğer profile'da workspace_id yoksa, kullanıcının sahibi olduğu workspace'i bul
             if (!workspaceId) {
-                const { data: ownedWorkspace } = await supabase
+                console.log("🔄 Profile'da workspace_id yok, owner_id ile aranıyor...");
+                const { data: ownedWorkspace, error: ownerError } = await supabase
                     .from('workspaces')
                     .select('id')
                     .eq('owner_id', user.id)
                     .single();
+
+                console.log("Owner workspace sorgu sonucu:", { ownedWorkspace, ownerError });
 
                 if (ownedWorkspace) {
                     workspaceId = ownedWorkspace.id;
@@ -107,10 +114,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             }
 
             if (!workspaceId) {
-                console.log("Kullanıcının workspace'i bulunamadı");
+                console.log("❌ Kullanıcının workspace'i bulunamadı - user.id:", user.id);
                 setLoading(false);
                 return;
             }
+
+            console.log("✅ Workspace ID bulundu:", workspaceId);
 
             const { data: workspaceData, error: wsError } = await supabase
                 .from('workspaces')
