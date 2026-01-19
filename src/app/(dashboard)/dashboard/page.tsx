@@ -6,15 +6,10 @@ import {
     Users,
     TrendingUp,
     Star,
-    Phone,
-    Eye,
-    UserCheck,
-    CheckCircle2,
     Clock,
     Home,
     Calendar,
     FileText,
-    Sparkles,
     Loader2,
     AlertCircle,
 } from "lucide-react";
@@ -31,34 +26,12 @@ import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DailyTasksCard } from "@/components/gamification/daily-tasks";
-import { getDashboardStats, getRecentActivity, type DashboardStats, type ActivityItem } from "@/lib/services/dashboard";
+import { getDashboardStats, getRecentActivity } from "@/lib/services/dashboard";
 import { getDealsByStage, type PipelineStageCount } from "@/lib/services/deals";
-
-// Seviye hesaplama fonksiyonu
-function calculateLevel(xp: number): { level: number; title: string; nextLevelXp: number; progress: number } {
-    const levels = [
-        { min: 0, max: 100, level: 1, title: "Çaylak" },
-        { min: 100, max: 300, level: 2, title: "Asistan" },
-        { min: 300, max: 600, level: 3, title: "Danışman" },
-        { min: 600, max: 1000, level: 4, title: "Kıdemli Danışman" },
-        { min: 1000, max: 1500, level: 5, title: "Uzman Danışman" },
-        { min: 1500, max: 2500, level: 6, title: "Baş Danışman" },
-        { min: 2500, max: 4000, level: 7, title: "Takım Lideri" },
-        { min: 4000, max: 6000, level: 8, title: "Bölge Müdürü" },
-        { min: 6000, max: 10000, level: 9, title: "Direktör" },
-        { min: 10000, max: Infinity, level: 10, title: "Efsane" },
-    ];
-
-    const currentLevel = levels.find((l) => xp >= l.min && xp < l.max) || levels[levels.length - 1];
-    const progress = ((xp - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100;
-
-    return {
-        level: currentLevel.level,
-        title: currentLevel.title,
-        nextLevelXp: currentLevel.max,
-        progress: Math.min(progress, 100),
-    };
-}
+import { calculateLevel } from "@/lib/gamification";
+import { formatTimeAgo } from "@/lib/formatters";
+import type { DashboardStats, ActivityItem } from "@/types/dashboard";
+import { useOnboarding } from "@/hooks/use-onboarding";
 
 // Aktivite ikonu
 function getActivityIcon(type: ActivityItem["type"]) {
@@ -81,24 +54,6 @@ function getActivityColor(type: ActivityItem["type"]) {
         default: return "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400";
     }
 }
-
-// Zaman formatla
-function formatTimeAgo(timestamp: string): string {
-    const now = new Date();
-    const date = new Date(timestamp);
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Az önce";
-    if (diffMins < 60) return `${diffMins} dk önce`;
-    if (diffHours < 24) return `${diffHours} saat önce`;
-    if (diffDays === 1) return "Dün";
-    return `${diffDays} gün önce`;
-}
-
-import { useOnboarding } from "@/hooks/use-onboarding";
 
 // Dashboard ana sayfası
 export default function DashboardPage() {
