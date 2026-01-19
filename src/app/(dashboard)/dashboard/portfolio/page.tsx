@@ -46,9 +46,19 @@ import {
     Collapsible,
     CollapsibleContent,
 } from "@/components/ui/collapsible";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
-import { getProperties, Property } from "@/lib/services/properties";
+import { getProperties, deleteProperty, Property } from "@/lib/services/properties";
 import {
     LISTING_TYPES,
     PROPERTY_TYPES,
@@ -63,6 +73,7 @@ import { generatePortfolioReport } from "@/lib/reports/property-report";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { toast } from "@/lib/use-toast";
 
 // Mülk tipi ikonu
 function getPropertyIcon(type: string) {
@@ -95,6 +106,10 @@ export default function PortfolioPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+    // Delete state
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // State
     const [view, setView] = useState<"grid" | "list" | "map">("grid");
@@ -136,6 +151,32 @@ export default function PortfolioPage() {
         } finally {
             clearTimeout(timeoutId);
             setLoading(false);
+        }
+    };
+
+    // Silme işlemi
+    const handleDelete = async () => {
+        if (!deleteId) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteProperty(deleteId);
+            setProperties(prev => prev.filter(p => p.id !== deleteId));
+            toast({
+                title: "Başarılı",
+                description: "Mülk başarıyla silindi.",
+                variant: "success",
+            });
+        } catch (error) {
+            console.error("Delete error:", error);
+            toast({
+                title: "Hata",
+                description: "Mülk silinirken bir hata oluştu.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsDeleting(false);
+            setDeleteId(null);
         }
     };
 
@@ -487,9 +528,11 @@ export default function PortfolioPage() {
             {view === "grid" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredProperties.map((property) => (
-                        <Link key={property.id} href={`/dashboard/portfolio/${property.id}`}>
-                            <PropertyCard property={property} />
-                        </Link>
+                        <PropertyCard
+                            key={property.id}
+                            property={property}
+                            onDelete={() => setDeleteId(property.id)}
+                        />
                     ))}
                 </div>
             )}
@@ -565,10 +608,17 @@ export default function PortfolioPage() {
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-center justify-end gap-1">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <Edit className="w-4 h-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500">
+                                                <Link href={`/dashboard/portfolio/${property.id}`}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <Edit className="w-4 h-4" />
+                                                    </Button>
+                                                </Link>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-red-500"
+                                                    onClick={() => setDeleteId(property.id)}
+                                                >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
@@ -616,12 +666,34 @@ export default function PortfolioPage() {
                     )}
                 </Card>
             )}
+
+            {/* Silme Onay Modalı */}
+            <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Mülkü silmek istediğinize emin misiniz?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu işlem geri alınamaz. Mülk kalıcı olarak silinecektir.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? "Siliniyor..." : "Sil"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
 
 // Mülk Kartı Bileşeni
-function PropertyCard({ property }: { property: Property }) {
+function PropertyCard({ property, onDelete }: { property: Property; onDelete: () => void }) {
     const [isHovered, setIsHovered] = useState(false);
 
     return (
@@ -632,67 +704,82 @@ function PropertyCard({ property }: { property: Property }) {
         >
             {/* Görsel */}
             <div className="relative h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600">
-                {/* Placeholder görsel */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    {getPropertyIcon(property.property_type)}
-                    <span className="ml-2 text-gray-500">{PROPERTY_TYPES[property.property_type as keyof typeof PROPERTY_TYPES]}</span>
-                </div>
+                <Link href={`/dashboard/portfolio/${property.id}`}>
+                    {/* Placeholder görsel */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        {getPropertyIcon(property.property_type)}
+                        <span className="ml-2 text-gray-500">{PROPERTY_TYPES[property.property_type as keyof typeof PROPERTY_TYPES]}</span>
+                    </div>
 
-                {/* Tür etiketi */}
-                <div className="absolute top-3 left-3">
-                    <Badge
-                        className={cn(
-                            "text-xs",
-                            property.listing_type === "satilik"
-                                ? "bg-blue-600 hover:bg-blue-700"
-                                : "bg-orange-500 hover:bg-orange-600"
-                        )}
-                    >
-                        {LISTING_TYPES[property.listing_type as keyof typeof LISTING_TYPES]}
-                    </Badge>
-                </div>
+                    {/* Tür etiketi */}
+                    <div className="absolute top-3 left-3">
+                        <Badge
+                            className={cn(
+                                "text-xs",
+                                property.listing_type === "satilik"
+                                    ? "bg-blue-600 hover:bg-blue-700"
+                                    : "bg-orange-500 hover:bg-orange-600"
+                            )}
+                        >
+                            {LISTING_TYPES[property.listing_type as keyof typeof LISTING_TYPES]}
+                        </Badge>
+                    </div>
 
-                {/* Durum etiketi */}
-                <div className="absolute top-3 right-3">
-                    <Badge className={cn("text-xs", getStatusColor(property.status))}>
-                        {PROPERTY_STATUSES[property.status as keyof typeof PROPERTY_STATUSES]}
-                    </Badge>
-                </div>
+                    {/* Durum etiketi */}
+                    <div className="absolute top-3 right-3">
+                        <Badge className={cn("text-xs", getStatusColor(property.status))}>
+                            {PROPERTY_STATUSES[property.status as keyof typeof PROPERTY_STATUSES]}
+                        </Badge>
+                    </div>
+
+                    {/* Fiyat */}
+                    <div className="absolute bottom-3 left-3 right-3">
+                        <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg px-3 py-2">
+                            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                {formatPrice(property.price, property.currency)}
+                            </p>
+                        </div>
+                    </div>
+                </Link>
 
                 {/* Hover aksiyonları */}
                 <div
                     className={cn(
-                        "absolute inset-0 bg-black/50 flex items-center justify-center gap-2 transition-opacity",
+                        "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-2 transition-opacity z-10",
                         isHovered ? "opacity-100" : "opacity-0"
                     )}
                 >
-                    <Button size="icon" variant="secondary" className="h-10 w-10">
-                        <Eye className="w-5 h-5" />
+                    <Link href={`/dashboard/portfolio/${property.id}`}>
+                        <Button size="icon" variant="secondary" className="h-10 w-10" title="Görüntüle">
+                            <Eye className="w-5 h-5" />
+                        </Button>
+                    </Link>
+                    <Link href={`/dashboard/portfolio/${property.id}`}>
+                        <Button size="icon" variant="secondary" className="h-10 w-10" title="Düzenle">
+                            <Edit className="w-5 h-5" />
+                        </Button>
+                    </Link>
+                    <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-10 w-10 hover:bg-red-100 hover:text-red-600"
+                        title="Sil"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                    >
+                        <Trash2 className="w-5 h-5" />
                     </Button>
-                    <Button size="icon" variant="secondary" className="h-10 w-10">
-                        <Edit className="w-5 h-5" />
-                    </Button>
-                    <Button size="icon" variant="secondary" className="h-10 w-10">
-                        <Heart className="w-5 h-5" />
-                    </Button>
-                    <Button size="icon" variant="secondary" className="h-10 w-10">
-                        <Share2 className="w-5 h-5" />
-                    </Button>
-                </div>
-
-                {/* Fiyat */}
-                <div className="absolute bottom-3 left-3 right-3">
-                    <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg px-3 py-2">
-                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                            {formatPrice(property.price, property.currency)}
-                        </p>
-                    </div>
                 </div>
             </div>
 
             {/* İçerik */}
             <CardContent className="p-4">
-                <h3 className="font-semibold text-lg mb-2 line-clamp-1">{property.title}</h3>
+                <Link href={`/dashboard/portfolio/${property.id}`}>
+                    <h3 className="font-semibold text-lg mb-2 line-clamp-1 hover:text-blue-600 transition-colors">{property.title}</h3>
+                </Link>
 
                 {/* Konum */}
                 <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm mb-3">
