@@ -5,9 +5,8 @@ import {
     getDashboardStats,
     getDashboardTasks,
     getRecentActivity,
-    DashboardStats,
-    DashboardTask,
 } from "@/lib/services/dashboard";
+import type { DashboardStats, DashboardTask } from "@/types/dashboard";
 
 // Query keys
 export const dashboardKeys = {
