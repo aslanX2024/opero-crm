@@ -25,6 +25,15 @@ export async function middleware(request: NextRequest) {
         },
     });
 
+    // Güvenlik Header'ları Ekle
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    );
+
     // Supabase server client oluştur
     const supabase = createServerClient(
         supabaseUrl,
@@ -42,6 +51,14 @@ export async function middleware(request: NextRequest) {
                             headers: request.headers,
                         },
                     });
+                    // Headerları tekrar set et (response yeniden oluşturulduğu için)
+                    response.headers.set("X-Frame-Options", "DENY");
+                    response.headers.set("X-Content-Type-Options", "nosniff");
+                    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+                    response.headers.set(
+                        "Permissions-Policy",
+                        "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+                    );
                     response.cookies.set({ name, value, ...options });
                 },
                 remove(name: string, options: any) {
@@ -52,16 +69,25 @@ export async function middleware(request: NextRequest) {
                             headers: request.headers,
                         },
                     });
+                     // Headerları tekrar set et
+                    response.headers.set("X-Frame-Options", "DENY");
+                    response.headers.set("X-Content-Type-Options", "nosniff");
+                    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+                    response.headers.set(
+                        "Permissions-Policy",
+                        "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+                    );
                     response.cookies.set({ name, value: "", ...options });
                 },
             },
         }
     );
 
-    // Oturumu kontrol et
+    // Oturumu kontrol et (Güvenlik: getSession yerine getUser kullan)
+    // getUser veritabanına sorgu atarak token'ın hala geçerli olduğunu doğrular
     const {
-        data: { session },
-    } = await supabase.auth.getSession();
+        data: { user },
+    } = await supabase.auth.getUser();
 
     const pathname = request.nextUrl.pathname;
 
@@ -73,14 +99,14 @@ export async function middleware(request: NextRequest) {
     const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
     // Giriş yapmamış kullanıcı korumalı sayfaya erişmeye çalışıyor
-    if (isProtectedRoute && !session) {
+    if (isProtectedRoute && !user) {
         const redirectUrl = new URL("/login", request.url);
         redirectUrl.searchParams.set("redirect", pathname);
         return NextResponse.redirect(redirectUrl);
     }
 
     // Giriş yapmış kullanıcı auth sayfalarına erişmeye çalışıyor
-    if (isAuthRoute && session) {
+    if (isAuthRoute && user) {
         return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
