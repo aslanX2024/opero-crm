@@ -25,6 +25,21 @@ export async function middleware(request: NextRequest) {
         },
     });
 
+    // CSP Oluştur
+    // Not: 'unsafe-inline' script/style için next.js development modunda gerekebilir. Production'da hash/nonce kullanılmalı.
+    // Şimdilik esnek bir politika ile başlıyoruz.
+    const cspHeader = `
+        default-src 'self';
+        script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.supabase.co;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' blob: data: https://*.supabase.co https://*.unsplash.com;
+        font-src 'self';
+        connect-src 'self' https://*.supabase.co;
+        frame-ancestors 'none';
+        block-all-mixed-content;
+        upgrade-insecure-requests;
+    `.replace(/\s{2,}/g, ' ').trim();
+
     // Güvenlik Header'ları Ekle
     response.headers.set("X-Frame-Options", "DENY");
     response.headers.set("X-Content-Type-Options", "nosniff");
@@ -33,6 +48,7 @@ export async function middleware(request: NextRequest) {
         "Permissions-Policy",
         "camera=(), microphone=(), geolocation=(), interest-cohort=()"
     );
+    response.headers.set("Content-Security-Policy", cspHeader);
 
     // Supabase server client oluştur
     const supabase = createServerClient(
@@ -51,7 +67,7 @@ export async function middleware(request: NextRequest) {
                             headers: request.headers,
                         },
                     });
-                    // Headerları tekrar set et (response yeniden oluşturulduğu için)
+                    // Headerları tekrar set et
                     response.headers.set("X-Frame-Options", "DENY");
                     response.headers.set("X-Content-Type-Options", "nosniff");
                     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -59,6 +75,8 @@ export async function middleware(request: NextRequest) {
                         "Permissions-Policy",
                         "camera=(), microphone=(), geolocation=(), interest-cohort=()"
                     );
+                    response.headers.set("Content-Security-Policy", cspHeader);
+
                     response.cookies.set({ name, value, ...options });
                 },
                 remove(name: string, options: any) {
@@ -69,7 +87,7 @@ export async function middleware(request: NextRequest) {
                             headers: request.headers,
                         },
                     });
-                     // Headerları tekrar set et
+                    // Headerları tekrar set et
                     response.headers.set("X-Frame-Options", "DENY");
                     response.headers.set("X-Content-Type-Options", "nosniff");
                     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -77,6 +95,8 @@ export async function middleware(request: NextRequest) {
                         "Permissions-Policy",
                         "camera=(), microphone=(), geolocation=(), interest-cohort=()"
                     );
+                    response.headers.set("Content-Security-Policy", cspHeader);
+
                     response.cookies.set({ name, value: "", ...options });
                 },
             },
@@ -84,7 +104,6 @@ export async function middleware(request: NextRequest) {
     );
 
     // Oturumu kontrol et (Güvenlik: getSession yerine getUser kullan)
-    // getUser veritabanına sorgu atarak token'ın hala geçerli olduğunu doğrular
     const {
         data: { user },
     } = await supabase.auth.getUser();

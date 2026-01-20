@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
     Building2,
     Users,
@@ -13,25 +14,47 @@ import {
     Loader2,
     AlertCircle,
 } from "lucide-react";
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    Tooltip,
-    ResponsiveContainer,
-    Cell,
-} from "recharts";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DailyTasksCard } from "@/components/gamification/daily-tasks";
-import { getDashboardStats, getRecentActivity } from "@/lib/services/dashboard";
+import { useDashboardStats, useRecentActivity } from "@/hooks/use-dashboard";
 import { getDealsByStage, type PipelineStageCount } from "@/lib/services/deals";
 import { calculateLevel } from "@/lib/gamification";
 import { formatTimeAgo } from "@/lib/formatters";
-import type { DashboardStats, ActivityItem } from "@/types/dashboard";
+import type { ActivityItem } from "@/types/dashboard";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { useQuery } from "@tanstack/react-query";
+
+// Recharts - Dinamik Import
+const ResponsiveContainer = dynamic(
+    () => import("recharts").then((mod) => mod.ResponsiveContainer),
+    { ssr: false, loading: () => <div className="h-full w-full bg-gray-100 animate-pulse rounded-lg" /> }
+);
+const BarChart = dynamic(
+    () => import("recharts").then((mod) => mod.BarChart),
+    { ssr: false }
+);
+const Bar = dynamic(
+    () => import("recharts").then((mod) => mod.Bar),
+    { ssr: false }
+);
+const XAxis = dynamic(
+    () => import("recharts").then((mod) => mod.XAxis),
+    { ssr: false }
+);
+const YAxis = dynamic(
+    () => import("recharts").then((mod) => mod.YAxis),
+    { ssr: false }
+);
+const Tooltip = dynamic(
+    () => import("recharts").then((mod) => mod.Tooltip),
+    { ssr: false }
+);
+const Cell = dynamic(
+    () => import("recharts").then((mod) => mod.Cell),
+    { ssr: false }
+);
 
 // Aktivite ikonu
 function getActivityIcon(type: ActivityItem["type"]) {
@@ -59,43 +82,23 @@ function getActivityColor(type: ActivityItem["type"]) {
 export default function DashboardPage() {
     const { profile } = useAuth();
     const { checkAndStartTour } = useOnboarding();
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [pipelineData, setPipelineData] = useState<PipelineStageCount[]>([]);
-    const [activities, setActivities] = useState<ActivityItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+
+    // TanStack Query ile veri çekme
+    const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats(profile?.id || "");
+    const { data: activities, isLoading: activityLoading, error: activityError } = useRecentActivity(profile?.id || "");
+
+    // Pipeline verisi için henüz hook yok, onu da useQuery ile saralım
+    const { data: pipelineData, isLoading: pipelineLoading, error: pipelineError } = useQuery({
+        queryKey: ["deals", "byStage", profile?.id],
+        queryFn: () => getDealsByStage(profile?.id || ""),
+        enabled: !!profile?.id,
+    });
+
+    const loading = statsLoading || activityLoading || pipelineLoading;
+    const error = statsError || activityError || pipelineError;
 
     // Seviye bilgisi
     const levelInfo = calculateLevel(profile?.xp || 0);
-
-    // Verileri yükle
-    useEffect(() => {
-        async function loadDashboardData() {
-            if (!profile?.id) return;
-
-            try {
-                setLoading(true);
-                setError(null);
-
-                const [statsData, pipelineDataResult, activitiesData] = await Promise.all([
-                    getDashboardStats(profile.id),
-                    getDealsByStage(profile.id),
-                    getRecentActivity(profile.id, 10),
-                ]);
-
-                setStats(statsData);
-                setPipelineData(pipelineDataResult);
-                setActivities(activitiesData);
-            } catch (err) {
-                console.error("Dashboard veri yükleme hatası:", err);
-                setError("Veriler yüklenirken bir hata oluştu.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        loadDashboardData();
-    }, [profile?.id]);
 
     // Onboarding başlat
     useEffect(() => {
@@ -125,7 +128,7 @@ export default function DashboardPage() {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Bir hata oluştu
                     </h3>
-                    <p className="text-gray-500 dark:text-gray-400">{error}</p>
+                    <p className="text-gray-500 dark:text-gray-400">Veriler yüklenirken bir hata oluştu.</p>
                 </div>
             </div>
         );
@@ -251,7 +254,7 @@ export default function DashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {pipelineData.length > 0 ? (
+                        {pipelineData && pipelineData.length > 0 ? (
                             <>
                                 <div className="h-64">
                                     <ResponsiveContainer width="100%" height="100%">
@@ -313,7 +316,7 @@ export default function DashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {activities.length > 0 ? (
+                    {activities && activities.length > 0 ? (
                         <div className="relative">
                             {/* Timeline çizgisi */}
                             <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
