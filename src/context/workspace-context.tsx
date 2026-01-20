@@ -1,179 +1,75 @@
 "use client";
 
-import {
-    createContext,
-    useContext,
-    useState,
-    useEffect,
-    useCallback,
-    ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./auth-context";
-import type { Workspace, WorkspaceMember, WorkspaceRole, PlanType, BillingMode } from "@/types/workspace";
-import { DEMO_WORKSPACE, DEMO_AGENTS, isDemoMode } from "@/lib/demo-data";
+import { supabase } from "@/lib/supabase";
 
-// Context tipi
+// Types
+interface Workspace {
+    id: string;
+    name: string;
+    logo_url?: string;
+    role: "broker" | "agent" | "admin";
+}
+
 interface WorkspaceContextType {
-    // Workspace state
     workspace: Workspace | null;
-    members: WorkspaceMember[];
-    loading: boolean;
-
-    // Kullanıcı rolü
-    userRole: WorkspaceRole;
-    isOwner: boolean;
     isBroker: boolean;
-
-    // Demo mode
-    isDemoMode: boolean;
-
-    // Yetki kontrolleri
-    canManageMembers: boolean;
-    canManageBilling: boolean;
-    canViewAllData: boolean;
-    canDeleteData: boolean;
-
-    // İşlemler
+    isOwner: boolean;
+    isDemoMode: boolean; // Geriye dönük uyumluluk için (her zaman false)
     refreshWorkspace: () => Promise<void>;
 }
 
-// Context oluştur
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
-// Provider bileşeni
-export function WorkspaceProvider({ children }: { children: ReactNode }) {
-    const { user, profile, isDemoMode: authDemoMode } = useAuth();
-
+export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+    const { user, profile } = useAuth();
     const [workspace, setWorkspace] = useState<Workspace | null>(null);
-    const [members, setMembers] = useState<WorkspaceMember[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    // Rol hesaplama
-    const userRole: WorkspaceRole = profile?.role === 'broker' ? 'broker' : 'danisman';
-    const isOwner = workspace?.owner_id === user?.id;
-    const isBroker = userRole === 'broker';
-
-    // Demo mode kontrolü
-    const inDemoMode = authDemoMode || isDemoMode();
-
-    // Yetki kontrolleri
-    const canManageMembers = isBroker;
-    const canManageBilling = isOwner;
-    const canViewAllData = isBroker;
-    const canDeleteData = isBroker && !inDemoMode;
-
-    // Workspace'i yükle
-    const refreshWorkspace = useCallback(async () => {
-        if (!user) {
+    const refreshWorkspace = async () => {
+        if (!user || !profile?.workspace_id) {
             setWorkspace(null);
-            setMembers([]);
-            setLoading(false);
             return;
         }
 
-        try {
-            setLoading(true);
+        // Demo verisi yerine gerçek veri
+        const { data } = await supabase
+            .from("workspaces")
+            .select("*")
+            .eq("id", profile.workspace_id)
+            .single();
 
-            // Demo modunda demo workspace kullan
-            if (inDemoMode) {
-                setWorkspace(DEMO_WORKSPACE as Workspace);
-                setMembers(DEMO_AGENTS.map((agent, index) => ({
-                    id: `member-${index}`,
-                    workspace_id: DEMO_WORKSPACE.id,
-                    user_id: agent.id,
-                    role: agent.role as WorkspaceRole,
-                    invited_at: new Date().toISOString(),
-                    joined_at: new Date().toISOString(),
-                })));
-                return;
-            }
-
-            // Supabase'den workspace çek
-            const { supabase } = await import("@/lib/supabase");
-
-            let workspaceId = profile?.workspace_id;
-
-            // Eğer profile'da workspace_id yoksa, kullanıcının sahibi olduğu workspace'i bul
-            if (!workspaceId) {
-                const { data: ownedWorkspace } = await supabase
-                    .from('workspaces')
-                    .select('id')
-                    .eq('owner_id', user.id)
-                    .single();
-
-                if (ownedWorkspace) {
-                    workspaceId = ownedWorkspace.id;
-                }
-            }
-
-            if (!workspaceId) {
-                setLoading(false);
-                return;
-            }
-
-            const { data: workspaceData, error: wsError } = await supabase
-                .from('workspaces')
-                .select('*')
-                .eq('id', workspaceId)
-                .single();
-
-            if (wsError) {
-                console.error("Workspace çekme hatası:", wsError);
-            } else if (workspaceData) {
-                setWorkspace(workspaceData as Workspace);
-            }
-
-            // Workspace üyelerini çek
-            const { data: membersData, error: membersError } = await supabase
-                .from('workspace_members')
-                .select('*')
-                .eq('workspace_id', workspaceId);
-
-            if (membersError) {
-                console.error("Üyeler çekme hatası:", membersError);
-            } else if (membersData) {
-                setMembers(membersData as WorkspaceMember[]);
-            }
-
-        } catch (error) {
-            console.error("Workspace yükleme hatası:", error);
-        } finally {
-            setLoading(false);
+        if (data) {
+            setWorkspace({
+                ...data,
+                role: profile.role || "agent"
+            });
         }
-    }, [user, profile, inDemoMode]);
-
-    // İlk yükleme
-    useEffect(() => {
-        refreshWorkspace();
-    }, [refreshWorkspace]);
-
-    const value: WorkspaceContextType = {
-        workspace,
-        members,
-        loading,
-        userRole,
-        isOwner,
-        isBroker,
-        isDemoMode: inDemoMode,
-        canManageMembers,
-        canManageBilling,
-        canViewAllData,
-        canDeleteData,
-        refreshWorkspace,
     };
 
+    useEffect(() => {
+        refreshWorkspace();
+    }, [user, profile]);
+
     return (
-        <WorkspaceContext.Provider value={value}>
+        <WorkspaceContext.Provider
+            value={{
+                workspace,
+                isBroker: profile?.role === "broker",
+                isOwner: profile?.role === "broker" || profile?.role === "admin",
+                isDemoMode: false,
+                refreshWorkspace,
+            }}
+        >
             {children}
         </WorkspaceContext.Provider>
     );
 }
 
-// Hook
 export function useWorkspace() {
     const context = useContext(WorkspaceContext);
     if (context === undefined) {
-        throw new Error("useWorkspace hook'u WorkspaceProvider içinde kullanılmalıdır");
+        throw new Error("useWorkspace must be used within a WorkspaceProvider");
     }
     return context;
 }
