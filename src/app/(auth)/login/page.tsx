@@ -29,6 +29,7 @@ export default function LoginPage() {
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors, isSubmitting },
     } = useForm<LoginInput>({
         resolver: zodResolver(loginSchema),
@@ -119,23 +120,11 @@ export default function LoginPage() {
                         <div className="flex items-center gap-2">
                              <Checkbox
                                 id="remember"
-                                {...register("rememberMe")}
                                 onCheckedChange={(checked) => {
-                                    // React Hook Form ile Checkbox entegrasyonu için setValue kullanılabilir
-                                    // Ancak basit kullanım için register yeterli olabilir.
-                                    // ShadCN checkbox biraz farklı çalışıyor, hidden input ile bağlayalım veya Controller kullanalım.
-                                    // Basitlik için native checkbox'a benzer davranması için register kullanıyoruz ama
-                                    // Radix Checkbox ref'i ile register ref'i uyumsuz olabilir.
-                                    // En doğrusu Controller kullanmak ama burada basit bir hidden input trick yapabiliriz veya
-                                    // manuel onChange handle edebiliriz.
+                                    setValue("rememberMe", !!checked);
                                 }}
                                 disabled={isSubmitting}
                             />
-                             {/* NOT: Shadcn Checkbox + React Hook Form için en iyisi Controller kullanmaktır.
-                                 Ancak hızlı çözüm için native input type="checkbox" kullanmak veya
-                                 register'ı doğru bağlamak gerekir.
-                                 Aşağıda manuel bağlama yapalım.
-                             */}
                         </div>
                         <Label
                             htmlFor="remember"

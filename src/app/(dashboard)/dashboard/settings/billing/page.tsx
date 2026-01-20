@@ -6,16 +6,11 @@ import {
     Check,
     Crown,
     Building2,
-    Users,
-    BarChart3,
-    Zap,
-    Shield,
     Download,
     AlertTriangle,
-    ExternalLink,
+    Shield,
 } from "lucide-react";
 import { useWorkspace } from "@/context/workspace-context";
-import { DemoRestriction } from "@/components/demo/demo-restriction";
 import { PLAN_FEATURES, BILLING_MODES, PlanType, BillingMode } from "@/types/workspace";
 
 // Demo fatura geçmişi
@@ -105,28 +100,27 @@ export default function BillingSettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                     {(Object.entries(BILLING_MODES) as [BillingMode, typeof BILLING_MODES[BillingMode]][]).map(
                         ([mode, info]) => (
-                            <DemoRestriction key={mode} action="settings">
-                                <button
-                                    onClick={() => setBillingMode(mode)}
-                                    className={`
-                                        p-4 border rounded-xl text-left transition-all
-                                        ${billingMode === mode
-                                            ? "border-primary bg-primary/5 ring-2 ring-primary"
-                                            : "hover:border-muted-foreground/30"
-                                        }
-                                    `}
-                                >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="font-medium">{info.label}</span>
-                                        {billingMode === mode && (
-                                            <Check className="h-5 w-5 text-primary" />
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {info.description}
-                                    </p>
-                                </button>
-                            </DemoRestriction>
+                            <button
+                                key={mode}
+                                onClick={() => setBillingMode(mode)}
+                                className={`
+                                    p-4 border rounded-xl text-left transition-all
+                                    ${billingMode === mode
+                                        ? "border-primary bg-primary/5 ring-2 ring-primary"
+                                        : "hover:border-muted-foreground/30"
+                                    }
+                                `}
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium">{info.label}</span>
+                                    {billingMode === mode && (
+                                        <Check className="h-5 w-5 text-primary" />
+                                    )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    {info.description}
+                                </p>
+                            </button>
                         )
                     )}
                 </div>
@@ -165,11 +159,9 @@ export default function BillingSettingsPage() {
                                 Mevcut Plan
                             </div>
                         ) : (
-                            <DemoRestriction action="payment">
-                                <button className="w-full py-2 border rounded-lg hover:bg-muted transition-colors text-sm">
-                                    Düşür
-                                </button>
-                            </DemoRestriction>
+                            <button className="w-full py-2 border rounded-lg hover:bg-muted transition-colors text-sm">
+                                Düşür
+                            </button>
                         )}
                     </div>
 
@@ -205,11 +197,9 @@ export default function BillingSettingsPage() {
                                 ✓ Mevcut Plan
                             </div>
                         ) : (
-                            <DemoRestriction action="payment">
-                                <button className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm">
-                                    Yükselt
-                                </button>
-                            </DemoRestriction>
+                            <button className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm">
+                                Yükselt
+                            </button>
                         )}
                     </div>
                 </div>
@@ -219,12 +209,10 @@ export default function BillingSettingsPage() {
             <div className="border rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Fatura Geçmişi</h3>
-                    <DemoRestriction action="export">
-                        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                            <Download className="h-4 w-4" />
-                            Tümünü İndir
-                        </button>
-                    </DemoRestriction>
+                    <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <Download className="h-4 w-4" />
+                        Tümünü İndir
+                    </button>
                 </div>
 
                 <div className="divide-y">
@@ -253,11 +241,9 @@ export default function BillingSettingsPage() {
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                                     Ödendi
                                 </span>
-                                <DemoRestriction action="export">
-                                    <button className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                                        <Download className="h-4 w-4 text-muted-foreground" />
-                                    </button>
-                                </DemoRestriction>
+                                <button className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                                    <Download className="h-4 w-4 text-muted-foreground" />
+                                </button>
                             </div>
                         </div>
                     ))}

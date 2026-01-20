@@ -14,7 +14,6 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { useWorkspace } from "@/context/workspace-context";
-import { DemoBanner } from "@/components/demo/demo-restriction";
 import type { LucideIcon } from "lucide-react";
 
 interface SettingsNavItem {
@@ -63,8 +62,6 @@ export default function SettingsLayout({
 
     return (
         <div className="min-h-screen bg-background">
-            <DemoBanner />
-
             {/* Header */}
             <div className="border-b bg-card">
                 <div className="container mx-auto px-4 py-6">
