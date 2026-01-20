@@ -26,34 +26,13 @@ import type { ActivityItem } from "@/types/dashboard";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useQuery } from "@tanstack/react-query";
 
-// Recharts - Dinamik Import
-const ResponsiveContainer = dynamic(
-    () => import("recharts").then((mod) => mod.ResponsiveContainer),
-    { ssr: false, loading: () => <div className="h-full w-full bg-gray-100 animate-pulse rounded-lg" /> }
-);
-const BarChart = dynamic(
-    () => import("recharts").then((mod) => mod.BarChart),
-    { ssr: false }
-);
-const Bar = dynamic(
-    () => import("recharts").then((mod) => mod.Bar),
-    { ssr: false }
-);
-const XAxis = dynamic(
-    () => import("recharts").then((mod) => mod.XAxis),
-    { ssr: false }
-);
-const YAxis = dynamic(
-    () => import("recharts").then((mod) => mod.YAxis),
-    { ssr: false }
-);
-const Tooltip = dynamic(
-    () => import("recharts").then((mod) => mod.Tooltip),
-    { ssr: false }
-);
-const Cell = dynamic(
-    () => import("recharts").then((mod) => mod.Cell),
-    { ssr: false }
+// Pipeline Chart - Dinamik Import (Type Safe Wrapper)
+const PipelineChart = dynamic(
+    () => import("@/components/dashboard/pipeline-chart"),
+    {
+        ssr: false,
+        loading: () => <div className="h-64 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg" />
+    }
 );
 
 // Aktivite ikonu
@@ -255,43 +234,7 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         {pipelineData && pipelineData.length > 0 ? (
-                            <>
-                                <div className="h-64">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={pipelineData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                                            <XAxis type="number" hide />
-                                            <YAxis
-                                                type="category"
-                                                dataKey="name"
-                                                tick={{ fontSize: 12 }}
-                                                axisLine={false}
-                                                tickLine={false}
-                                                width={100}
-                                            />
-                                            <Tooltip
-                                                formatter={(value: number) => [`${value} fırsat`, "Toplam"]}
-                                                contentStyle={{
-                                                    backgroundColor: "var(--background)",
-                                                    border: "1px solid var(--border)",
-                                                    borderRadius: "8px",
-                                                }}
-                                            />
-                                            <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={24}>
-                                                {pipelineData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                {/* Pipeline toplamı */}
-                                <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                                    <span className="text-sm text-gray-500">Toplam Pipeline</span>
-                                    <span className="text-lg font-bold">
-                                        {pipelineData.reduce((acc, curr) => acc + curr.count, 0)} Fırsat
-                                    </span>
-                                </div>
-                            </>
+                            <PipelineChart data={pipelineData} />
                         ) : (
                             <div className="h-64 flex items-center justify-center">
                                 <div className="text-center">
