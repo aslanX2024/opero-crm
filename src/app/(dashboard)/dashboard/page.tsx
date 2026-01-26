@@ -1,64 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
     Building2,
     Users,
     TrendingUp,
     Star,
-    Phone,
-    Eye,
-    UserCheck,
-    CheckCircle2,
     Clock,
     Home,
     Calendar,
     FileText,
-    Sparkles,
     Loader2,
     AlertCircle,
 } from "lucide-react";
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    Tooltip,
-    ResponsiveContainer,
-    Cell,
-} from "recharts";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DailyTasksCard } from "@/components/gamification/daily-tasks";
-import { getDashboardStats, getRecentActivity, type DashboardStats, type ActivityItem } from "@/lib/services/dashboard";
+import { useDashboardStats, useRecentActivity } from "@/hooks/use-dashboard";
 import { getDealsByStage, type PipelineStageCount } from "@/lib/services/deals";
+import { calculateLevel } from "@/lib/gamification";
+import { formatTimeAgo } from "@/lib/formatters";
+import type { ActivityItem } from "@/types/dashboard";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import { useQuery } from "@tanstack/react-query";
 
-// Seviye hesaplama fonksiyonu
-function calculateLevel(xp: number): { level: number; title: string; nextLevelXp: number; progress: number } {
-    const levels = [
-        { min: 0, max: 100, level: 1, title: "Çaylak" },
-        { min: 100, max: 300, level: 2, title: "Asistan" },
-        { min: 300, max: 600, level: 3, title: "Danışman" },
-        { min: 600, max: 1000, level: 4, title: "Kıdemli Danışman" },
-        { min: 1000, max: 1500, level: 5, title: "Uzman Danışman" },
-        { min: 1500, max: 2500, level: 6, title: "Baş Danışman" },
-        { min: 2500, max: 4000, level: 7, title: "Takım Lideri" },
-        { min: 4000, max: 6000, level: 8, title: "Bölge Müdürü" },
-        { min: 6000, max: 10000, level: 9, title: "Direktör" },
-        { min: 10000, max: Infinity, level: 10, title: "Efsane" },
-    ];
-
-    const currentLevel = levels.find((l) => xp >= l.min && xp < l.max) || levels[levels.length - 1];
-    const progress = ((xp - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100;
-
-    return {
-        level: currentLevel.level,
-        title: currentLevel.title,
-        nextLevelXp: currentLevel.max,
-        progress: Math.min(progress, 100),
-    };
-}
+// Pipeline Chart - Dinamik Import (Type Safe Wrapper)
+const PipelineChart = dynamic(
+    () => import("@/components/dashboard/pipeline-chart"),
+    {
+        ssr: false,
+        loading: () => <div className="h-64 w-full bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg" />
+    }
+);
 
 // Aktivite ikonu
 function getActivityIcon(type: ActivityItem["type"]) {
@@ -82,65 +57,27 @@ function getActivityColor(type: ActivityItem["type"]) {
     }
 }
 
-// Zaman formatla
-function formatTimeAgo(timestamp: string): string {
-    const now = new Date();
-    const date = new Date(timestamp);
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Az önce";
-    if (diffMins < 60) return `${diffMins} dk önce`;
-    if (diffHours < 24) return `${diffHours} saat önce`;
-    if (diffDays === 1) return "Dün";
-    return `${diffDays} gün önce`;
-}
-
-import { useOnboarding } from "@/hooks/use-onboarding";
-
 // Dashboard ana sayfası
 export default function DashboardPage() {
     const { profile } = useAuth();
     const { checkAndStartTour } = useOnboarding();
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [pipelineData, setPipelineData] = useState<PipelineStageCount[]>([]);
-    const [activities, setActivities] = useState<ActivityItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+
+    // TanStack Query ile veri çekme
+    const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats(profile?.id || "");
+    const { data: activities, isLoading: activityLoading, error: activityError } = useRecentActivity(profile?.id || "");
+
+    // Pipeline verisi için henüz hook yok, onu da useQuery ile saralım
+    const { data: pipelineData, isLoading: pipelineLoading, error: pipelineError } = useQuery({
+        queryKey: ["deals", "byStage", profile?.id],
+        queryFn: () => getDealsByStage(profile?.id || ""),
+        enabled: !!profile?.id,
+    });
+
+    const loading = statsLoading || activityLoading || pipelineLoading;
+    const error = statsError || activityError || pipelineError;
 
     // Seviye bilgisi
     const levelInfo = calculateLevel(profile?.xp || 0);
-
-    // Verileri yükle
-    useEffect(() => {
-        async function loadDashboardData() {
-            if (!profile?.id) return;
-
-            try {
-                setLoading(true);
-                setError(null);
-
-                const [statsData, pipelineDataResult, activitiesData] = await Promise.all([
-                    getDashboardStats(profile.id),
-                    getDealsByStage(profile.id),
-                    getRecentActivity(profile.id, 10),
-                ]);
-
-                setStats(statsData);
-                setPipelineData(pipelineDataResult);
-                setActivities(activitiesData);
-            } catch (err) {
-                console.error("Dashboard veri yükleme hatası:", err);
-                setError("Veriler yüklenirken bir hata oluştu.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        loadDashboardData();
-    }, [profile?.id]);
 
     // Onboarding başlat
     useEffect(() => {
@@ -170,7 +107,7 @@ export default function DashboardPage() {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Bir hata oluştu
                     </h3>
-                    <p className="text-gray-500 dark:text-gray-400">{error}</p>
+                    <p className="text-gray-500 dark:text-gray-400">Veriler yüklenirken bir hata oluştu.</p>
                 </div>
             </div>
         );
@@ -296,44 +233,8 @@ export default function DashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {pipelineData.length > 0 ? (
-                            <>
-                                <div className="h-64">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={pipelineData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                                            <XAxis type="number" hide />
-                                            <YAxis
-                                                type="category"
-                                                dataKey="name"
-                                                tick={{ fontSize: 12 }}
-                                                axisLine={false}
-                                                tickLine={false}
-                                                width={100}
-                                            />
-                                            <Tooltip
-                                                formatter={(value: number) => [`${value} fırsat`, "Toplam"]}
-                                                contentStyle={{
-                                                    backgroundColor: "var(--background)",
-                                                    border: "1px solid var(--border)",
-                                                    borderRadius: "8px",
-                                                }}
-                                            />
-                                            <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={24}>
-                                                {pipelineData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                {/* Pipeline toplamı */}
-                                <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                                    <span className="text-sm text-gray-500">Toplam Pipeline</span>
-                                    <span className="text-lg font-bold">
-                                        {pipelineData.reduce((acc, curr) => acc + curr.count, 0)} Fırsat
-                                    </span>
-                                </div>
-                            </>
+                        {pipelineData && pipelineData.length > 0 ? (
+                            <PipelineChart data={pipelineData} />
                         ) : (
                             <div className="h-64 flex items-center justify-center">
                                 <div className="text-center">
@@ -358,7 +259,7 @@ export default function DashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {activities.length > 0 ? (
+                    {activities && activities.length > 0 ? (
                         <div className="relative">
                             {/* Timeline çizgisi */}
                             <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />

@@ -82,9 +82,10 @@ export interface CreatePropertyInput {
 
 // Service Functions
 export async function getProperties(userId: string) {
+    // Sadece liste görünümü için gerekli alanları çekelim (SELECT optimizasyonu)
     const { data, error } = await supabase
         .from("properties")
-        .select("*")
+        .select("id, title, listing_type, property_type, price, currency, city, district, images, status, created_at")
         .eq("created_by", userId)
         .order("created_at", { ascending: false });
 
@@ -161,9 +162,10 @@ export async function deleteProperty(id: string) {
 }
 
 export async function getPropertyStats(userId: string) {
+    // Sadece istatistik için gerekli minimal alanları çekelim
     const { data, error } = await supabase
         .from("properties")
-        .select("id, status, listing_type, price")
+        .select("status, price")
         .eq("created_by", userId);
 
     if (error) {

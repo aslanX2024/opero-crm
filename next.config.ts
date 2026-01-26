@@ -15,7 +15,37 @@ const withPWA = withPWAInit({
 
 // Next.js yapılandırması
 const nextConfig: NextConfig = {
-    /* Buraya yapılandırma seçenekleri eklenebilir */
+    // Görsel Optimizasyonu
+    images: {
+        formats: ['image/avif', 'image/webp'],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: '**.supabase.co', // Supabase Storage
+            },
+            {
+                protocol: 'https',
+                hostname: '**.unsplash.com', // Demo görselleri için
+            }
+        ],
+        minimumCacheTTL: 60,
+    },
+    // Derleyici Seçenekleri
+    compiler: {
+        removeConsole: process.env.NODE_ENV === "production" ? {
+            exclude: ['error', 'warn'],
+        } : false,
+    },
+    // Deneysel Özellikler
+    experimental: {
+        optimizePackageImports: [
+            'lucide-react',
+            '@radix-ui/react-avatar',
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            'recharts'
+        ],
+    },
 };
 
 export default withPWA(nextConfig);
