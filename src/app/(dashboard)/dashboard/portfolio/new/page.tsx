@@ -17,6 +17,7 @@ import {
     Plus,
     Trash2,
     GripVertical,
+    AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -740,6 +741,14 @@ export default function NewPropertyPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Hata Mesajı */}
+            {error && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+                    <AlertCircle className="w-5 h-5 mr-2" />
+                    {error}
+                </div>
+            )}
 
             {/* Navigasyon Butonları */}
             <div className="flex items-center justify-between mt-6">
